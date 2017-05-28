@@ -7,6 +7,7 @@ from .mn_connector import MNConnector
 from .processor import Processor
 from .verificator import Verificator
 
+
 class Broker (Singleton):
 
     __loader = None
