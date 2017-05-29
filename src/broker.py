@@ -28,4 +28,6 @@ class Broker (Singleton):
         self.__loader = NNLoader()
         self.__processor = Processor()
         self.__verificator = Verificator()
-        pass
+
+    def run(self):
+        self.__mn.serve()
