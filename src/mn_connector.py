@@ -1,28 +1,21 @@
 from concurrent import futures
 import time
 
-from api.masternode_pb2 import *
-from api.masternode_pb2_grpc import *
-
-from .singleton import Singleton
+from api.masternode_worker_pb2 import *
+from api.masternode_worker_pb2_grpc import *
 
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
 
-class MasternodeRequestsServicer(WorkerServiceServicer):
-
-    def CogniteBatch(self, request, context):
-        pass
-
-
-class MNConnector(Singleton):
+class MNConnector:
     """Provices methods that implement functionality for masternode worker endpoint"""
 
-    def __init__(self):
+    def __init__(self, servicer: WorkerServicer):
+        self.servicer = servicer
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        add_WorkerServiceServicer_to_server(
-            MasternodeRequestsServicer(), self.server)
+        add_WorkerServicer_to_server(
+            self.servicer, self.server)
 
     def serve(self, port='[::]:50051'):
         self.server.add_insecure_port(port)

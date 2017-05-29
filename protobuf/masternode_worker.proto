@@ -3,9 +3,11 @@ syntax = "proto3";
 message CognitionRequest {
     string arch_address = 1;
     string model_address = 2;
-    uint32 samples_count = 3;
-    string pub_key = 4;
-    string signed_message = 5;
+    string data_address = 3;
+    uint32 samples_count = 4;
+    string pub_key = 5;
+    string signed_message = 6;
+    string contract_address = 7;
 }
 
 message AcceptedTask {
@@ -16,10 +18,14 @@ message AcceptedTask {
 enum DeclineReason {
     BUSY = 0;
     INTERNAL_ERROR = 1;
+    UNVERIFIED = 2;
+    BROKEN_MODERL = 3;
+    BROKEN_DATA = 4;
+    IPFS_ERROR = 5;
 }
 
 message DeclinedTask {
-    DeclineReason type = 1;
+    DeclineReason reason = 1;
     string message = 2;
 }
 
@@ -42,7 +48,7 @@ message BatchRequest {
 }
 
 message BatchStatus {
-    bool completed = 1;
+    bool active = 1;
     uint32 time_estimate = 2;
 }
 

@@ -1,12 +1,10 @@
-from .singleton import Singleton
-
 from web3 import Web3, KeepAliveRPCProvider
 
 
-class EthConnector(Singleton):
-    __web3 = Web3(KeepAliveRPCProvider(host='localhost', port='8545'))
-    __contract_address = ""
+DEFAULT_CONTRACT_ADDR = ''
 
-    def __init__(self):
-        self.contract = EthConnector.__web3.eth.Eth.contract(address=EthConnector.__contract_address)
-        pass
+class EthConnector:
+
+    def __init__(self, host: str='localhost', port: str='8545', contract_addr: str=DEFAULT_CONTRACT_ADDR):
+        self.web3 = Web3(KeepAliveRPCProvider(host=host, port=port))
+        self.root_contract = self.web3.eth.Eth.contract(address=contract_addr)

@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='masternode_worker.proto',
   package='',
   syntax='proto3',
-  serialized_pb=_b('\n\x17masternode_worker.proto\"\x7f\n\x10\x43ognitionRequest\x12\x14\n\x0c\x61rch_address\x18\x01 \x01(\t\x12\x15\n\rmodel_address\x18\x02 \x01(\t\x12\x15\n\rsamples_count\x18\x03 \x01(\r\x12\x0f\n\x07pub_key\x18\x04 \x01(\t\x12\x16\n\x0esigned_message\x18\x05 \x01(\t\"6\n\x0c\x41\x63\x63\x65ptedTask\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12\x15\n\rtime_estimate\x18\x02 \x01(\r\"=\n\x0c\x44\x65\x63linedTask\x12\x1c\n\x04type\x18\x01 \x01(\x0e\x32\x0e.DeclineReason\x12\x0f\n\x07message\x18\x02 \x01(\t\"{\n\x11\x43ognitionResponse\x12\x10\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08\x12\"\n\ttask_info\x18\x02 \x01(\x0b\x32\r.AcceptedTaskH\x00\x12%\n\x0c\x64\x65\x63line_info\x18\x03 \x01(\x0b\x32\r.DeclinedTaskH\x00\x42\t\n\x07payload\"C\n\x0f\x43ognitionResult\x12\x13\n\x0bres_address\x18\x01 \x01(\t\x12\x15\n\rsamples_count\x18\x02 \x01(\rJ\x04\x08\x03\x10\x05\"\x1f\n\x0c\x42\x61tchRequest\x12\x0f\n\x07task_id\x18\x01 \x01(\t\"7\n\x0b\x42\x61tchStatus\x12\x11\n\tcompleted\x18\x01 \x01(\x08\x12\x15\n\rtime_estimate\x18\x02 \x01(\r\"\"\n\x0f\x43ognitionStatus\x12\x0f\n\x07success\x18\x01 \x01(\x08\"\x1a\n\tPeersList\x12\r\n\x05peers\x18\x01 \x03(\t\"I\n\x0bVersionInfo\x12\r\n\x05major\x18\x01 \x01(\r\x12\r\n\x05minor\x18\x02 \x01(\r\x12\r\n\x05patch\x18\x03 \x01(\r\x12\r\n\x05\x61gent\x18\x04 \x01(\t*-\n\rDeclineReason\x12\x08\n\x04\x42USY\x10\x00\x12\x12\n\x0eINTERNAL_ERROR\x10\x01\x32\xc2\x01\n\x06Worker\x12$\n\x04ping\x12\x0c.VersionInfo\x1a\x0c.VersionInfo\"\x00\x12)\n\rsuggest_peers\x12\n.PeersList\x1a\n.PeersList\"\x00\x12\x38\n\rcognite_batch\x12\x11.CognitionRequest\x1a\x12.CognitionResponse\"\x00\x12-\n\x0c\x62\x61tch_status\x12\r.BatchRequest\x1a\x0c.BatchStatus\"\x00\x32\x96\x01\n\nMasternode\x12$\n\x04pong\x12\x0c.VersionInfo\x1a\x0c.VersionInfo\"\x00\x12)\n\rsuggest_peers\x12\n.PeersList\x1a\n.PeersList\"\x00\x12\x37\n\x0f\x62\x61tch_completed\x12\x10.CognitionResult\x1a\x10.CognitionStatus\"\x00\x62\x06proto3')
+  serialized_pb=_b('\n\x17masternode_worker.proto\"\xaf\x01\n\x10\x43ognitionRequest\x12\x14\n\x0c\x61rch_address\x18\x01 \x01(\t\x12\x15\n\rmodel_address\x18\x02 \x01(\t\x12\x14\n\x0c\x64\x61ta_address\x18\x03 \x01(\t\x12\x15\n\rsamples_count\x18\x04 \x01(\r\x12\x0f\n\x07pub_key\x18\x05 \x01(\t\x12\x16\n\x0esigned_message\x18\x06 \x01(\t\x12\x18\n\x10\x63ontract_address\x18\x07 \x01(\t\"6\n\x0c\x41\x63\x63\x65ptedTask\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12\x15\n\rtime_estimate\x18\x02 \x01(\r\"?\n\x0c\x44\x65\x63linedTask\x12\x1e\n\x06reason\x18\x01 \x01(\x0e\x32\x0e.DeclineReason\x12\x0f\n\x07message\x18\x02 \x01(\t\"{\n\x11\x43ognitionResponse\x12\x10\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08\x12\"\n\ttask_info\x18\x02 \x01(\x0b\x32\r.AcceptedTaskH\x00\x12%\n\x0c\x64\x65\x63line_info\x18\x03 \x01(\x0b\x32\r.DeclinedTaskH\x00\x42\t\n\x07payload\"C\n\x0f\x43ognitionResult\x12\x13\n\x0bres_address\x18\x01 \x01(\t\x12\x15\n\rsamples_count\x18\x02 \x01(\rJ\x04\x08\x03\x10\x05\"\x1f\n\x0c\x42\x61tchRequest\x12\x0f\n\x07task_id\x18\x01 \x01(\t\"4\n\x0b\x42\x61tchStatus\x12\x0e\n\x06\x61\x63tive\x18\x01 \x01(\x08\x12\x15\n\rtime_estimate\x18\x02 \x01(\r\"\"\n\x0f\x43ognitionStatus\x12\x0f\n\x07success\x18\x01 \x01(\x08\"\x1a\n\tPeersList\x12\r\n\x05peers\x18\x01 \x03(\t\"I\n\x0bVersionInfo\x12\r\n\x05major\x18\x01 \x01(\r\x12\r\n\x05minor\x18\x02 \x01(\r\x12\r\n\x05patch\x18\x03 \x01(\r\x12\r\n\x05\x61gent\x18\x04 \x01(\t*q\n\rDeclineReason\x12\x08\n\x04\x42USY\x10\x00\x12\x12\n\x0eINTERNAL_ERROR\x10\x01\x12\x0e\n\nUNVERIFIED\x10\x02\x12\x11\n\rBROKEN_MODERL\x10\x03\x12\x0f\n\x0b\x42ROKEN_DATA\x10\x04\x12\x0e\n\nIPFS_ERROR\x10\x05\x32\xc2\x01\n\x06Worker\x12$\n\x04ping\x12\x0c.VersionInfo\x1a\x0c.VersionInfo\"\x00\x12)\n\rsuggest_peers\x12\n.PeersList\x1a\n.PeersList\"\x00\x12\x38\n\rcognite_batch\x12\x11.CognitionRequest\x1a\x12.CognitionResponse\"\x00\x12-\n\x0c\x62\x61tch_status\x12\r.BatchRequest\x1a\x0c.BatchStatus\"\x00\x32\x96\x01\n\nMasternode\x12$\n\x04pong\x12\x0c.VersionInfo\x1a\x0c.VersionInfo\"\x00\x12)\n\rsuggest_peers\x12\n.PeersList\x1a\n.PeersList\"\x00\x12\x37\n\x0f\x62\x61tch_completed\x12\x10.CognitionResult\x1a\x10.CognitionStatus\"\x00\x62\x06proto3')
 )
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
@@ -38,17 +38,37 @@ _DECLINEREASON = _descriptor.EnumDescriptor(
       name='INTERNAL_ERROR', index=1, number=1,
       options=None,
       type=None),
+    _descriptor.EnumValueDescriptor(
+      name='UNVERIFIED', index=2, number=2,
+      options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='BROKEN_MODERL', index=3, number=3,
+      options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='BROKEN_DATA', index=4, number=4,
+      options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='IPFS_ERROR', index=5, number=5,
+      options=None,
+      type=None),
   ],
   containing_type=None,
   options=None,
-  serialized_start=698,
-  serialized_end=743,
+  serialized_start=746,
+  serialized_end=859,
 )
 _sym_db.RegisterEnumDescriptor(_DECLINEREASON)
 
 DeclineReason = enum_type_wrapper.EnumTypeWrapper(_DECLINEREASON)
 BUSY = 0
 INTERNAL_ERROR = 1
+UNVERIFIED = 2
+BROKEN_MODERL = 3
+BROKEN_DATA = 4
+IPFS_ERROR = 5
 
 
 
@@ -74,22 +94,36 @@ _COGNITIONREQUEST = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='samples_count', full_name='CognitionRequest.samples_count', index=2,
-      number=3, type=13, cpp_type=3, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='pub_key', full_name='CognitionRequest.pub_key', index=3,
-      number=4, type=9, cpp_type=9, label=1,
+      name='data_address', full_name='CognitionRequest.data_address', index=2,
+      number=3, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='signed_message', full_name='CognitionRequest.signed_message', index=4,
+      name='samples_count', full_name='CognitionRequest.samples_count', index=3,
+      number=4, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='pub_key', full_name='CognitionRequest.pub_key', index=4,
       number=5, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='signed_message', full_name='CognitionRequest.signed_message', index=5,
+      number=6, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='contract_address', full_name='CognitionRequest.contract_address', index=6,
+      number=7, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -106,8 +140,8 @@ _COGNITIONREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=27,
-  serialized_end=154,
+  serialized_start=28,
+  serialized_end=203,
 )
 
 
@@ -144,8 +178,8 @@ _ACCEPTEDTASK = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=156,
-  serialized_end=210,
+  serialized_start=205,
+  serialized_end=259,
 )
 
 
@@ -157,7 +191,7 @@ _DECLINEDTASK = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='type', full_name='DeclinedTask.type', index=0,
+      name='reason', full_name='DeclinedTask.reason', index=0,
       number=1, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -182,8 +216,8 @@ _DECLINEDTASK = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=212,
-  serialized_end=273,
+  serialized_start=261,
+  serialized_end=324,
 )
 
 
@@ -230,8 +264,8 @@ _COGNITIONRESPONSE = _descriptor.Descriptor(
       name='payload', full_name='CognitionResponse.payload',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=275,
-  serialized_end=398,
+  serialized_start=326,
+  serialized_end=449,
 )
 
 
@@ -268,8 +302,8 @@ _COGNITIONRESULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=400,
-  serialized_end=467,
+  serialized_start=451,
+  serialized_end=518,
 )
 
 
@@ -299,8 +333,8 @@ _BATCHREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=469,
-  serialized_end=500,
+  serialized_start=520,
+  serialized_end=551,
 )
 
 
@@ -312,7 +346,7 @@ _BATCHSTATUS = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='completed', full_name='BatchStatus.completed', index=0,
+      name='active', full_name='BatchStatus.active', index=0,
       number=1, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
@@ -337,8 +371,8 @@ _BATCHSTATUS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=502,
-  serialized_end=557,
+  serialized_start=553,
+  serialized_end=605,
 )
 
 
@@ -368,8 +402,8 @@ _COGNITIONSTATUS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=559,
-  serialized_end=593,
+  serialized_start=607,
+  serialized_end=641,
 )
 
 
@@ -399,8 +433,8 @@ _PEERSLIST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=595,
-  serialized_end=621,
+  serialized_start=643,
+  serialized_end=669,
 )
 
 
@@ -451,11 +485,11 @@ _VERSIONINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=623,
-  serialized_end=696,
+  serialized_start=671,
+  serialized_end=744,
 )
 
-_DECLINEDTASK.fields_by_name['type'].enum_type = _DECLINEREASON
+_DECLINEDTASK.fields_by_name['reason'].enum_type = _DECLINEREASON
 _COGNITIONRESPONSE.fields_by_name['task_info'].message_type = _ACCEPTEDTASK
 _COGNITIONRESPONSE.fields_by_name['decline_info'].message_type = _DECLINEDTASK
 _COGNITIONRESPONSE.oneofs_by_name['payload'].fields.append(
