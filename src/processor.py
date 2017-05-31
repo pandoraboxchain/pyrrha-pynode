@@ -8,9 +8,12 @@ class ProcessorCallback:
 
 class Processor(NNListener):
     def __init__(self, callback: ProcessorCallback, ipfs_config: IPFSConfig):
-        print("Connecting to IPFS...")
-        self.ipfs_connector = IPFSConnector(ipfs_config)
-        print("IPFS connected successfully.")
+        print("Connecting to IPFS server %s:%d..." % (ipfs_config.server, ipfs_config.port))
+        try:
+            self.ipfs_connector = IPFSConnector(ipfs_config)
+        except:
+            raise IPFSError("Can't connect IPFS server")
+        print("IPFS server connected successfully")
         self.nn_loader = NNLoader()
 
     def cognite_batch(self, arch: str, model: str, data: str) -> (str, int):

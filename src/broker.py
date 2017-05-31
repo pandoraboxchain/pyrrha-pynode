@@ -26,7 +26,9 @@ class Broker (WorkerServicer, ProcessorCallback):
 
         self.processors = []
         self.tasks = {}
+        print('Starting verification service...')
         self.verificator = Verificator(self.config.eth)
+        print('Verification service started successfully')
 
     def run(self):
         print("Starting masternode interface...")
@@ -39,7 +41,7 @@ class Broker (WorkerServicer, ProcessorCallback):
             raise BusyError
         print("Instantiating processor...")
         processor = Processor(self, ipfs_config=self.config.ipfs)
-        print("New processor instantiated successfully.")
+        print("New processor instantiated successfully")
         self.processors.append(processor)
         return processor
 
