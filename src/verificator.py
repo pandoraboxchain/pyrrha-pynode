@@ -1,4 +1,4 @@
-from .eth_connector import EthConnector
+from eth_connector import EthConnector
 
 
 class Verificator:

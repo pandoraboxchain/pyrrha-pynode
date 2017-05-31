@@ -20,6 +20,7 @@ class MNConnector:
     def serve(self, port='[::]:50051'):
         self.server.add_insecure_port(port)
         self.server.start()
+        print("Listening for incoming masternode connections on %s" % port)
         try:
             while True:
                 time.sleep(_ONE_DAY_IN_SECONDS)
