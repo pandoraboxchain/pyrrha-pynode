@@ -1,10 +1,10 @@
-from eth_connector import EthConnector
+from eth_connector import EthConnector, EthConfig
 
 
 class Verificator:
 
-    def __init__(self):
-        self.eth_connector = EthConnector()
+    def __init__(self, config: EthConfig):
+        self.eth_connector = EthConnector(config)
 
     def verify_masternode(self, pub_key: str, message: str) -> bool:
         # TODO: Implement

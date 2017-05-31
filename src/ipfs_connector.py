@@ -1,10 +1,15 @@
+from collections import namedtuple
 import ipfsapi
+
+
+IPFSConfig = namedtuple('IPFSConfig', 'server port')
 
 
 class IPFSConnector:
 
-    def __init__(self, host: str='127.0.0.1', port: int=5001):
-        self.api = ipfsapi.connect(host, port)
+    def __init__(self, config: IPFSConfig):
+        self.config = config
+        self.api = ipfsapi.connect(self.config.server, self.config.port)
 
     def download_file(self, addr: str):
         return self.api.get(addr)

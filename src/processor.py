@@ -1,5 +1,5 @@
-from ipfs_connector import IPFSConnector
-from nn_loader import *
+from ipfs_connector import IPFSConnector, IPFSConfig
+from nn_loader import NNListener, NNLoader
 
 
 class ProcessorCallback:
@@ -7,9 +7,9 @@ class ProcessorCallback:
 
 
 class Processor(NNListener):
-    def __init__(self, callback: ProcessorCallback):
+    def __init__(self, callback: ProcessorCallback, ipfs_config: IPFSConfig):
         print("Connecting to IPFS...")
-        self.ipfs_connector = IPFSConnector()
+        self.ipfs_connector = IPFSConnector(ipfs_config)
         print("IPFS connected successfully.")
         self.nn_loader = NNLoader()
 

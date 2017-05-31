@@ -1,5 +1,6 @@
 import logging
 import traceback
+from collections import namedtuple
 
 from mn_connector import *
 from processor import *
@@ -8,14 +9,7 @@ from verificator import Verificator
 from api.masternode_worker_pb2 import *
 
 
-# TODO: Read version constants from build-specific configuration file
-VER_MAJOR = 0
-VER_MINOR = 1
-VER_PATCH = 0
-AGENT_NAME = 'neurowrk'
-
-# TODO: Read constants from generic configuration file
-TASKS_LIMIT = 3
+BrokerConfig = namedtuple('BrokerConfig', 'ipfs eth mwapi max_tasks ver_ma ver_mi patch agent')
 
 
 class BusyError (Exception):
@@ -24,13 +18,15 @@ class BusyError (Exception):
 
 class Broker (WorkerServicer, ProcessorCallback):
 
-    def __init__(self):
+    def __init__(self, config: BrokerConfig):
+        self.config = config
+
         # Set up masternode connections
-        self.mn_connector = MNConnector(self)
+        self.mn_connector = MNConnector(self, self.config.mwapi)
 
         self.processors = []
         self.tasks = {}
-        self.verificator = Verificator()
+        self.verificator = Verificator(self.config.eth)
 
     def run(self):
         print("Starting masternode interface...")
@@ -38,11 +34,11 @@ class Broker (WorkerServicer, ProcessorCallback):
         print("Masternode interface started successfully")
 
     def spawn_processor(self) -> Processor:
-        if len(self.processors) >= TASKS_LIMIT:
+        if len(self.processors) >= self.config.max_tasks:
             logging.warning("Can't instantiate processor, number of tasks is to high")
             raise BusyError
         print("Instantiating processor...")
-        processor = Processor(self)
+        processor = Processor(self, ipfs_config=self.config.ipfs)
         print("New processor instantiated successfully.")
         self.processors.append(processor)
         return processor
@@ -53,7 +49,10 @@ class Broker (WorkerServicer, ProcessorCallback):
 
     def ping(self, request, context):
         print("Got ping request from masternode.")
-        return VersionInfo(major=VER_MAJOR, minor=VER_MINOR, patch=VER_PATCH, agent=AGENT_NAME)
+        return VersionInfo(major=self.config.ver_ma,
+                           minor=self.config.ver_mi,
+                           patch=self.config.patch,
+                           agent=self.config.agent)
 
     def suggest_peers(self, request, context):
         # TODO: Implement
