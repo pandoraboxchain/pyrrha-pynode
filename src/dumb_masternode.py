@@ -11,9 +11,13 @@ def worker_ping(stub: WorkerStub) -> VersionInfo:
 
 def worker_cognite_batch(stub: WorkerStub) -> CognitionResponse:
     print('Sending batch of work for cognition...')
-    req = CognitionRequest(arch_address='',
-                           model_address='',
-                           data_address='',
+    # Keras1 VGG16 arch: QmZ4WTy97oAEmn89hbZCijKFsYrki5RPTHvXbYqJtAi9N6
+    #              weights: QmfQ6qBGjHWb7K3oTYmUKxQytcYKyAZfDrLPXKMFhYiEAq
+    # Keras2 VGG16 arch: QmNqqnk23MvQL8w5nbxaNYCnVNyYZdP7HxB8Td2QYdQh78
+    #              weights:
+    req = CognitionRequest(arch_address='QmNqqnk23MvQL8w5nbxaNYCnVNyYZdP7HxB8Td2QYdQh78', # VGG16 architecture
+                           model_address='QmfQ6qBGjHWb7K3oTYmUKxQytcYKyAZfDrLPXKMFhYiEAq', # Pre-trained VGG16 model
+                           data_address='QmNxi5m9oZekHcfddayPwKNmsFfBGAP39CZXSnjnC2yF6B', # 7 sample images
                            samples_count=1,
                            pub_key='',
                            signed_message='',

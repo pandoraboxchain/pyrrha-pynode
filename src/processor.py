@@ -1,7 +1,6 @@
 from ipfs_connector import IPFSConnector, IPFSConfig
 from nn_loader import NNListener, NNLoader
 
-
 class ProcessorCallback:
     pass
 
@@ -15,6 +14,9 @@ class Processor(NNListener):
             raise IPFSError("Can't connect IPFS server")
         print("IPFS server connected successfully")
         self.nn_loader = NNLoader()
+
+    def cognition_completed(self, results):
+        pass
 
     def cognite_batch(self, arch: str, model: str, data: str) -> (str, int):
         try:
