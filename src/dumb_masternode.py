@@ -13,10 +13,10 @@ def worker_cognite_batch(stub: WorkerStub) -> CognitionResponse:
     print('Sending batch of work for cognition...')
     # Keras1 VGG16 arch: QmZ4WTy97oAEmn89hbZCijKFsYrki5RPTHvXbYqJtAi9N6
     #              weights: QmfQ6qBGjHWb7K3oTYmUKxQytcYKyAZfDrLPXKMFhYiEAq
-    # Keras2 VGG16 arch: QmNqqnk23MvQL8w5nbxaNYCnVNyYZdP7HxB8Td2QYdQh78
-    #              weights:
-    req = CognitionRequest(arch_address='QmNqqnk23MvQL8w5nbxaNYCnVNyYZdP7HxB8Td2QYdQh78', # VGG16 architecture
-                           model_address='QmfQ6qBGjHWb7K3oTYmUKxQytcYKyAZfDrLPXKMFhYiEAq', # Pre-trained VGG16 model
+    # Keras2 VGG16 arch: QmPhtLgduZaCJFQ4SReNMDnHo7Lb6YyVQU1wCiJdvw6CJa
+    #              weights: QmQuHbEaQem2KGHwgpcZs7dHMeu8sm4npjbDA8NRXLPfPo
+    req = CognitionRequest(arch_address='QmPhtLgduZaCJFQ4SReNMDnHo7Lb6YyVQU1wCiJdvw6CJa', # VGG16 architecture
+                           model_address='QmQuHbEaQem2KGHwgpcZs7dHMeu8sm4npjbDA8NRXLPfPo', # Pre-trained VGG16 model
                            data_address='QmNxi5m9oZekHcfddayPwKNmsFfBGAP39CZXSnjnC2yF6B', # 7 sample images
                            samples_count=1,
                            pub_key='',
