@@ -105,7 +105,7 @@ class Broker (WorkerServicer, ProcessorCallback):
                 logging.warning(decline_reason.message)
                 return CognitionResponse(accepted=False, decline_info=decline_reason)
 
-        return CognitionResponse(accepted=True, task_info=AcceptedTask(task_id=task_id, time_estimage=time_est))
+        return CognitionResponse(accepted=True, task_info=AcceptedTask(task_id=task_id, time_estimate=time_est))
 
     def batch_status(self, request, context) -> BatchStatus:
         processor = self.tasks[request.task_id]
