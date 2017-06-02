@@ -1,5 +1,5 @@
-from api.masternode_worker_pb2 import *
-from api.masternode_worker_pb2_grpc import *
+from neuromwapi.messages import *
+from neuromwapi.services import *
 
 
 def worker_ping(stub: WorkerStub) -> VersionInfo:

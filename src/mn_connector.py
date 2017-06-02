@@ -2,8 +2,8 @@ from concurrent import futures
 from collections import namedtuple
 import time
 
-from api.masternode_worker_pb2 import *
-from api.masternode_worker_pb2_grpc import *
+from neuromwapi.messages import *
+from neuromwapi.services import *
 
 
 MWAPIConfig = namedtuple('MWAPIConfig', 'host port max_conns')

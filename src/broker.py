@@ -6,7 +6,8 @@ from mn_connector import *
 from processor import *
 from verificator import Verificator
 
-from api.masternode_worker_pb2 import *
+from neuromwapi.messages import *
+from neuromwapi.services import *
 
 
 BrokerConfig = namedtuple('BrokerConfig', 'ipfs eth mwapi max_tasks ver_ma ver_mi patch agent')
