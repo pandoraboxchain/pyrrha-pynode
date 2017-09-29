@@ -1,2 +1,2 @@
-# Pyndora – reference Python worker node for Pandora Boxchain network
-
+# neurowrk
+Worker app for neurochain providing computations for AI kernels on hardware from providers
