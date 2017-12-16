@@ -1,0 +1,33 @@
+@startuml
+skinparam componentStyle uml2
+
+package Thread1 {
+    () "Worker Node\nContract" << Web3 >> as workerContract
+    [WorkerNode]
+    [WorkerNode] <-up- workerContract
+}
+
+package Thread2 {
+    () "Admin Web API" << JSON-RPC >> as webAPI
+    [WebAPI]
+    [WebAPI] <-up- webAPI
+}
+
+package Thread3 {
+    () "Cognitive Job\nContract" << Web3 >> as jobContract
+    () IPFS
+    [CognitiveJob]
+    [CognitiveJob] <-up- jobContract
+    [CognitiveJob] -down-> IPFS
+}
+
+package Thread0 {
+    [Broker]
+    [Broker] <.up. [WebAPI]
+    [Broker] <.up.> [WorkerNode]
+    [Broker] .up.> [CognitiveJob]
+}
+
+[WorkerNode] <.left.> [CognitiveJob]
+
+@enduml
