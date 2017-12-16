@@ -1,0 +1,3 @@
+[submodule "abi"]
+	path = abi
+	url = https://github.com/pandoraboxchain/pyrrha-abi.git

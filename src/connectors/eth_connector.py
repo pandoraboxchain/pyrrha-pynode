@@ -1,9 +1,10 @@
 import json
 import logging
-from ..patterns.decorators import *
-from ..patterns.exceptions import *
+from typing import Callable
+from patterns.decorators import *
+from patterns.exceptions import *
 from os import path
-from web3 import Web3, KeepAliveRPCProvider
+from web3 import Web3, HTTPProvider
 
 
 def read_abi(abi_path: str, file: str) -> str:
@@ -56,12 +57,19 @@ class EthConnector:
     def connect(self) -> bool:
         self.logger.debug('Connecting to Ethereum node on %s:%d...', self.host, self.port)
         try:
-            self.web3 = Web3(KeepAliveRPCProvider(host=self.host, port=self.port))
+            self.web3 = Web3(HTTPProvider('%s:%d' % (self.host, self.port)))
+            info = self.web3.eth.syncing
         except Exception as ex:
             self.logger.error('Error connecting Ethereum node: %s', type(ex))
             self.logger.error(ex.args)
             return False
-        self.logger.debug('Ethereum node connected successfully')
+
+        if info is not False:
+            self.logger.error('Ethereum node is not in synch')
+            return False
+
+        self.logger.debug('Ethereum node connected successfully. Here is an info about it:')
+        self.logger.debug(info)
         return True
 
     @run_once
@@ -70,10 +78,22 @@ class EthConnector:
             raise NotInitialized()
 
         self.contract = self.contract_at(self.address, self.abi_file)
-        return True if self.contract is not None else False
+        if self.contract is False:
+            return False
+
+        # Calling getter method to check whether contract was initiated with a proper address
+        # (corresponding to the given ABI)
+        try:
+            self.contract.call().owner()
+        except Exception as ex:
+            self.logger.error('Wrong contract ABI, got exception %s', type(ex))
+            self.logger.error(ex.args)
+            return False
+
+        return True
 
     @run_once
-    def bind_events(self, event: str, callback: function):
+    def bind_events(self, event: str, callback: Callable[[object], None]):
         if self.contract is None:
             raise NotInitialized()
         self.event_filter = self.contract.on(event)

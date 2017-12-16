@@ -1,16 +1,19 @@
 import logging
-import traceback
+import time
 from collections import namedtuple
+from threading import Thread
 
-from singleton import *
-from eth import *
+from patterns.singleton import *
+from connectors.eth_connector import EthConnector
 from webapi.webapi import *
 
-# Configuration object designed in form of named tuple (common style for all configuration in the project).
+# Configuration objects designed in form of named tuple (common style for all configuration in the project).
 # The reason of using named tuples instead of dict is to get compile-time errors in case of misspelled config keys.
-BrokerConfig = namedtuple('BrokerConfig', 'eth webapi')
+BrokerConfig = namedtuple('BrokerConfig', 'eth')
+EthConfig = namedtuple('EthConfig', 'server port contract abi hooks')
 
-class Broker (Singleton, EthDelegate, WebDelegate):
+
+class Broker (Singleton, Thread):
     """
     Broker manages all underlying services/threads and arranges communications between them. Broker directly manages
     WebAPI and Ethereum threads and provides delegate interfaces for capturing their output via callback functions.
@@ -27,7 +30,8 @@ class Broker (Singleton, EthDelegate, WebDelegate):
         """
 
         # Calling singleton init preventing repeated class instantiation
-        super().__init__()
+        Singleton.__init__(self)
+        Thread.__init__(self, daemon=True)
 
         # Initializing logger object
         self.logger = logging.getLogger("broker")
@@ -36,10 +40,15 @@ class Broker (Singleton, EthDelegate, WebDelegate):
         self.config = config
 
         # Instantiating services objects
-        # self.eth = Eth(config=self.config.eth, delegate=self)
+        econf = self.config.eth
+        self.eth = EthConnector(host=econf.server, port=econf.port, address=econf.contract,
+                                abi_path=econf.abi, abi_file='PandoraHooks' if econf.hooks else 'Pandora')
         # self.api = WebAPI(config=self.config.webapi, delegate=self)
 
     def run(self) -> bool:
+        time.sleep(1000000)
+
+    def connect(self) -> bool:
         """
         Starts all necessary interfaces (WebAPI, Ethereum and its underlying interfaces). Fails if any of them failed.
 
@@ -47,22 +56,36 @@ class Broker (Singleton, EthDelegate, WebDelegate):
         """
 
         # Trying to bind web api port (to fail early before trying everything else more complex)
-        self.logger.debug("Statring api...")
-        if not self.api.bind():
-            self.logger.error("Can't bind to Web API port, shutting down")
-            return False
+        # self.logger.debug("Statring api...")
+        # if not self.api.bind():
+        #     self.logger.error("Can't bind to Web API port, shutting down")
+        #     return False
 
         # Now trying to connect Ethereum node JSON RPC interface
-        self.logger.debug("API started successfully")
-        self.logger.debug("Starting broker...")
-        if not self.eth.bind():
-            self.logger.error("Can't connect Ethereum network, shutting down")
-            return False
+        # self.logger.debug("API started successfully")
+        # self.logger.debug("Starting broker...")
+        # if not self.eth.bind():
+        #     self.logger.error("Can't connect Ethereum network, shutting down")
+        #     return False
 
         # Since all necessary network environments are available for now we can run the services as a separate threads
-        self.api.run()
-        self.eth.run()
+        # self.api.run()
+        # self.eth.run()
+
+        result = True
+        try:
+            result &= self.eth.connect()
+            result &= self.eth.init_contract() if result else False
+        except Exception as ex:
+            self.logger.error("Exception connecting to Ethereum: %s", type(ex))
+            self.logger.error(ex.args)
+            return False
+        if result is not True:
+            self.logger.error("Unable to start broker, exiting")
+            return False
 
         self.logger.debug("Broker started successfully")
+
+        super().start()
 
         return True
