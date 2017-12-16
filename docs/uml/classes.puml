@@ -1,42 +1,58 @@
 @startuml
 
-package main {
-    interface eth_delegate
-    interface webapi_delegate
-
-    class broker << (S,orange) >>
-    broker -up-|> eth_delegate
-    broker -up-|> webapi_delegate
-
-    enum broker_states {
-    }
-    broker --> broker_states
+package connectors {
+    class EthConnected
+    class IPFSConnected
 }
 
-package webapi {
-    class webapi
+package stdlib #lightgrey {
+    class Thread
 }
 
-package eth {
-    interface processor_delegate
-    class eth
-    eth -up-|> processor_delegate
+package patterns {
+    class StateMachine
+    class Singleton
+}
 
-    enum eth_states {
+package node {
+    class WorkerNode
+    enum NodeStates {
     }
-    eth --> eth_states
+    WorkerNode -- NodeStates
+    EthConnected <|-- WorkerNode
+    StateMachine <|-- WorkerNode
+    Thread <|-- WorkerNode
+}
+
+package job {
+    class CognitiveJob
+    enum JobStates {
+    }
+    CognitiveJob -- JobStates
+    EthConnected <|-- CognitiveJob
+    StateMachine <|-- CognitiveJob
+    Thread <|-- CognitiveJob
 }
 
 package processor {
-    class processor
-    class ipfs
-    class keras
+    class Processor
+    enum ProcessorStates {
+    }
+    Processor -- ProcessorStates
+    Thread <|-- Processor
+    IPFSConnected <|-- Processor
+    StateMachine <|-- Processor
 }
 
-broker *--* eth
-broker *-down-* webapi
-eth *--* processor
-processor --* keras
-processor --* ipfs
+package webapi {
+    class WebAPIServer
+    Thread <|-- WebAPIServer
+}
+
+class Broker
+Singleton <|-- Broker
+Broker *--o WorkerNode
+Broker *--o WebAPIServer
+CognitiveJob *--o WorkerNode
 
 @enduml

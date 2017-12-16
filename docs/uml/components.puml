@@ -4,21 +4,31 @@ skinparam componentStyle uml2
 package Thread1 {
     () "Worker Node\nContract" << Web3 >> as workerContract
     [WorkerNode]
-    [WorkerNode] <-up- workerContract
+    [WorkerNode] <-left- workerContract
+
+    note bottom of [WorkerNode]
+        State reflects
+        WorkerNode
+        contract state
+    end note
 }
 
 package Thread2 {
     () "Admin Web API" << JSON-RPC >> as webAPI
     [WebAPI]
-    [WebAPI] <-up- webAPI
+    [WebAPI] <-right- webAPI
 }
 
 package Thread3 {
     () "Cognitive Job\nContract" << Web3 >> as jobContract
-    () IPFS
     [CognitiveJob]
-    [CognitiveJob] <-up- jobContract
-    [CognitiveJob] -down-> IPFS
+    [CognitiveJob] <-left- jobContract
+
+    note bottom of [CognitiveJob]
+        State reflects
+        CognitiveJob
+        contract state
+    end note
 }
 
 package Thread0 {
@@ -26,13 +36,22 @@ package Thread0 {
 }
 
 package Thread5 {
+    () IPFS
+    [Processor]
     [Keras]
+    [Processor] --> [Keras]
+    [Processor] --> IPFS
+
+    note right of [Processor]
+        Has own
+        interanl state
+    end note
 }
 
-[Broker] <.up. [WebAPI]
-[Broker] <.up.> [WorkerNode]
-[Broker] .up.> [CognitiveJob]
-[WorkerNode] <.left.> [CognitiveJob]
-[CognitiveJob] <..> [Keras]
+[Broker] <.right. [WebAPI]
+[Broker] <.right.> [WorkerNode]
+[Broker] .right.> [CognitiveJob]
+[WorkerNode] <..> [CognitiveJob]
+[CognitiveJob] <.right.> [Processor]
 
 @enduml
