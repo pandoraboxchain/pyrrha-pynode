@@ -23,11 +23,16 @@ package Thread3 {
 
 package Thread0 {
     [Broker]
-    [Broker] <.up. [WebAPI]
-    [Broker] <.up.> [WorkerNode]
-    [Broker] .up.> [CognitiveJob]
 }
 
+package Thread5 {
+    [Keras]
+}
+
+[Broker] <.up. [WebAPI]
+[Broker] <.up.> [WorkerNode]
+[Broker] .up.> [CognitiveJob]
 [WorkerNode] <.left.> [CognitiveJob]
+[CognitiveJob] <..> [Keras]
 
 @enduml
