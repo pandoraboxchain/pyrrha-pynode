@@ -1,0 +1,27 @@
+@startuml
+
+[*] -> Connecting
+Connecting -> Connected
+Connecting --> Terminating: Uninitialized\nDestroyed\nNo connectivity
+Terminating --> [*]
+
+state Connected {
+   Offline -> Idle
+   Idle -> Assigned
+   Assigned -> ReadyForDataValidation
+   ReadyForDataValidation -> ValidatingData
+   ValidatingData -> ReadyForComputing
+   ReadyForComputing -> Computing
+   Computing --> Idle
+
+   Idle --> Offline
+   Assigned --> Offline
+   ReadyForDataValidation --> Offline
+   ValidatingData --> Offline
+   ReadyForComputing --> Offline
+   Computing --> Offline
+}
+
+Connected --> Terminating: Destroyed
+
+@enduml

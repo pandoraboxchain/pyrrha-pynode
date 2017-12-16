@@ -1,0 +1,43 @@
+@startuml
+start
+:Read config]
+while ()
+    :Connect Eth|
+    if (multiple\ntimeouts) then (yes)
+        end
+    elseif (pandora\ncontract\nexists?) then (no)
+        end
+    elseif (worker\ncontract\nexists?) then (no)
+        end
+    else (yes)
+        while (connected?) is (yes)
+            fork
+                :Check state;
+                split
+                    :Offline}
+                    :alive()>
+                    end
+                split again
+                    :Idle}
+                    end
+                split again
+                    :active}
+                    :read job]
+                    :compute|
+                    :report\nresults>
+                    end
+                split again
+                    :UnderPenalty}
+                    end
+                split again
+                    :InsufficientStake}
+                    end
+                end split
+            fork again
+                :listen events<
+            endfork
+        endwhile (no)
+    endif
+endwhile
+-[#white]->
+@enduml

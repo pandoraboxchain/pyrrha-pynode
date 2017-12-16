@@ -1,0 +1,22 @@
+@startuml
+
+[*] --> ipfs
+
+state "Connecting IPFS" as ipfs
+state "Connecting Eth" as eth
+
+ipfs --> [*]
+ipfs --> eth
+
+eth --> [*]
+eth --> Init
+
+Init --> [*]
+Init --> Listening
+
+Listening --> Computing
+
+Computing --> eth
+Computing --> ipfs
+
+@enduml

@@ -1,0 +1,42 @@
+@startuml
+
+package main {
+    interface eth_delegate
+    interface webapi_delegate
+
+    class broker << (S,orange) >>
+    broker -up-|> eth_delegate
+    broker -up-|> webapi_delegate
+
+    enum broker_states {
+    }
+    broker --> broker_states
+}
+
+package webapi {
+    class webapi
+}
+
+package eth {
+    interface processor_delegate
+    class eth
+    eth -up-|> processor_delegate
+
+    enum eth_states {
+    }
+    eth --> eth_states
+}
+
+package processor {
+    class processor
+    class ipfs
+    class keras
+}
+
+broker *--* eth
+broker *-down-* webapi
+eth *--* processor
+processor --* keras
+processor --* ipfs
+
+@enduml

@@ -1,0 +1,14 @@
+@startuml
+skinparam componentStyle uml2
+
+[Eth] -up-> EthRPC
+EthRPC -> [Eth]
+HTTP -right-> [WebAPI]
+[WebAPI] .up.> [Broker]
+[Broker] .up.> [Eth]
+[Eth] ..> [Processor]
+[Processor] ..> [IPFS]
+[Processor] .right.> [Keras]
+[IPFS] -right-> IPFSAPI
+
+@enduml

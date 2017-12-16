@@ -1,0 +1,111 @@
+@startuml
+
+box "API Thread"
+    boundary webapi
+end box
+box "Main Thread"
+    control main
+end box
+
+== Initialization ==
+
+[-> main: start
+activate main
+main -> main: read_config()
+deactivate main
+
+create webapi
+main -->> webapi: thread
+
+box "Ethereum Thread"
+    create entity eth
+end box
+main -->> eth: thread
+loop
+    eth -> eth: connect
+end
+eth -> eth: read_contracts
+
+alt failure
+    eth --\\ main: shutdown
+    destroy eth
+    destroy main
+
+else success
+    eth --\\ main: connected
+
+== Main workflows ==
+
+    eth ->>]: ask for state
+    loop
+        eth <<--]: state
+        group process_state
+            box "Processor"
+            create control processor
+            eth -->> processor: compute
+            activate processor
+            opt for DataValidation & Computing
+                create entity ipfs
+                processor -->> ipfs: instantiate
+                processor -> ipfs: connect
+                activate ipfs
+                ipfs -->> processor: connection status
+                deactivate ipfs
+
+                alt failure
+                    processor --\\ eth: ipfs_failed
+                    activate eth
+                    eth ->]: decline_job
+                    deactivate eth
+
+                else success
+                    processor -> ipfs: load_data
+                    activate ipfs
+                    ipfs --> processor: loaded
+                    deactivate ipfs
+                    deactivate processor
+                    create control model
+                    processor -->> model: thread
+                    model -> model: run
+                    activate model
+                    model --\\ processor: completed
+                    activate processor
+                    deactivate model
+                    destroy model
+                    processor -> ipfs: upload
+                    activate ipfs
+                    ipfs --> processor: uploaded
+                    deactivate ipfs
+                end
+            end
+            processor --\\ eth: completed
+            deactivate processor
+            destroy processor
+            end box
+        end
+        eth ->]: change_state
+        eth -> eth: listen_events
+        ...
+    end
+end
+
+== API requests ==
+
+[-> webapi: request
+activate webapi
+webapi -> main: read_state
+activate main
+main -> eth: read_state
+activate eth
+eth -> processor: read_state
+activate processor
+processor -->> eth: data
+deactivate processor
+eth -->> main: data
+deactivate eth
+main -->> webapi: results
+deactivate main
+[<<-- webapi: data
+deactivate webapi
+
+@enduml
