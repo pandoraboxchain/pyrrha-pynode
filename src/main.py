@@ -1,11 +1,8 @@
 import sys
+import logging
 
 from broker import Broker, BrokerConfig, IPFSConfig, MWAPIConfig
 from eth_connector import EthConfig
-
-CONFIGS_MWAPI = {
-    'LOCAL': MWAPIConfig(host='[::]', port=50051, max_conns=10)
-}
 
 CONFIGS_ETH = {
     'LOCAL': EthConfig(server='http://127.0.0.1', port=8545, contract='0x33c9d18fb98e08fe73262e333bcbf428ebedbeff'),
@@ -29,6 +26,10 @@ CONFIGS = {
         agent='neurowrk-test'
     )
 }
+
+logging.basicConfig(level=logging.DEBUG,
+                    format='(%(threadName)-10s) %(message)s',
+                    )
 
 
 def run(config_name):

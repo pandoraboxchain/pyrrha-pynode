@@ -1,6 +1,8 @@
 
 
 class Singleton:
+    """Helps creating singleton classes"""
+
     __instance = None
 
     @staticmethod
