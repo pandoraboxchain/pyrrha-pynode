@@ -1,0 +1,3 @@
+
+class IPFSConnector:
+    pass

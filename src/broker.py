@@ -36,8 +36,8 @@ class Broker (Singleton, EthDelegate, WebDelegate):
         self.config = config
 
         # Instantiating services objects
-        self.eth = Eth(config=self.config.eth, delegate=self)
-        self.api = WebAPI(config=self.config.webapi, delegate=self)
+        # self.eth = Eth(config=self.config.eth, delegate=self)
+        # self.api = WebAPI(config=self.config.webapi, delegate=self)
 
     def run(self) -> bool:
         """
