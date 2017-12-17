@@ -1,9 +1,13 @@
 
-def run_once(f):
-    def wrapper(*args, **kwargs):
-        if not wrapper.has_run:
-             wrapper.has_run = True
-             return f(*args, **kwargs)
-    wrapper.has_run = False
-    return wrapper
+def run_once(method):
+    """A decorator that runs a method only once."""
 
+    attrname = "_%s_once_result" % id(method)
+
+    def decorated(self, *args, **kwargs):
+        try:
+            return getattr(self, attrname)
+        except AttributeError:
+            setattr(self, attrname, method(self, *args, **kwargs))
+            return getattr(self, attrname)
+    return decorated

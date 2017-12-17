@@ -67,8 +67,7 @@ class EthConnector:
             self.logger.error('Ethereum node is not in synch')
             return False
 
-        self.logger.debug('Ethereum node connected successfully. Here is an info about it:')
-        self.logger.debug(info)
+        self.logger.debug('Ethereum node connected successfully')
         return True
 
     @run_once
@@ -92,7 +91,7 @@ class EthConnector:
         return True
 
     @run_once
-    def bind_events(self, event: str, callback: Callable[[object], None]):
+    def bind_event(self, event: str, callback: Callable[[object], None]):
         if self.contract is None:
             raise NotInitialized()
         self.event_filter = self.contract.on(event)

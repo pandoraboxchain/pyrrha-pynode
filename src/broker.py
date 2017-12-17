@@ -4,6 +4,7 @@ from threading import Thread
 
 from patterns.singleton import *
 from connectors.eth_connector import EthConnector
+from node.worker_node import WorkerNode
 from webapi.webapi import *
 
 
@@ -37,10 +38,10 @@ class Broker (Singleton, Thread):
         # Instantiating services objects
         self.pandora = EthConnector(server=self.eth_server, address=pandora,
                                     abi_path=self.abi_path, abi_file='PandoraHooks' if use_hooks else 'Pandora')
-        self.node = EthConnector(server=self.eth_server, address=node, abi_path=self.abi_path, abi_file='WorkerNode')
+        self.node = WorkerNode(server=self.eth_server, address=node, abi_path=self.abi_path, abi_file='WorkerNode')
         # self.api = WebAPI(config=self.config.webapi, delegate=self)
 
-    def run(self) -> bool:
+    def run(self):
         time.sleep(1000000)
 
     def connect(self) -> bool:
@@ -71,8 +72,7 @@ class Broker (Singleton, Thread):
         try:
             result &= self.pandora.connect()
             result &= self.pandora.init_contract() if result else False
-            result &= self.node.connect() if result else False
-            result &= self.node.init_contract() if result else False
+            result &= self.node.bootstrap() if result else False
         except Exception as ex:
             self.logger.error("Exception connecting to Ethereum: %s", type(ex))
             self.logger.error(ex.args)
