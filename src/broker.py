@@ -3,7 +3,7 @@ import time
 from threading import Thread
 
 from patterns.singleton import *
-from connectors.eth_connector import EthConnector
+from eth.eth_connector import EthConnector
 from node.worker_node import WorkerNode
 from webapi.webapi import *
 
