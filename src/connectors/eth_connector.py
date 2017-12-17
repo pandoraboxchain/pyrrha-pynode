@@ -37,13 +37,12 @@ class EthConnector:
 
     read_abi = staticmethod(read_abi)
 
-    def __init__(self, host: str, port: int, address: str, abi_path: str, abi_file: str):
+    def __init__(self, server: str, address: str, abi_path: str, abi_file: str):
         # Initializing logger object
         self.logger = logging.getLogger("EthConnector")
 
         # Saving config
-        self.host = host
-        self.port = port
+        self.server = server
         self.address = address
         self.abi_path = abi_path
         self.abi_file = abi_file
@@ -55,9 +54,9 @@ class EthConnector:
 
     @run_once
     def connect(self) -> bool:
-        self.logger.debug('Connecting to Ethereum node on %s:%d...', self.host, self.port)
+        self.logger.debug('Connecting Ethereum node on %s...', self.server)
         try:
-            self.web3 = Web3(HTTPProvider('%s:%d' % (self.host, self.port)))
+            self.web3 = Web3(HTTPProvider(self.server))
             info = self.web3.eth.syncing
         except Exception as ex:
             self.logger.error('Error connecting Ethereum node: %s', type(ex))
@@ -86,7 +85,7 @@ class EthConnector:
         try:
             self.contract.call().owner()
         except Exception as ex:
-            self.logger.error('Wrong contract ABI, got exception %s', type(ex))
+            self.logger.error('Wrong contract address or ABI, got exception %s', type(ex))
             self.logger.error(ex.args)
             return False
 

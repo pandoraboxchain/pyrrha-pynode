@@ -1,16 +1,10 @@
 import logging
 import time
-from collections import namedtuple
 from threading import Thread
 
 from patterns.singleton import *
 from connectors.eth_connector import EthConnector
 from webapi.webapi import *
-
-# Configuration objects designed in form of named tuple (common style for all configuration in the project).
-# The reason of using named tuples instead of dict is to get compile-time errors in case of misspelled config keys.
-BrokerConfig = namedtuple('BrokerConfig', 'eth')
-EthConfig = namedtuple('EthConfig', 'server port contract abi hooks')
 
 
 class Broker (Singleton, Thread):
@@ -20,7 +14,7 @@ class Broker (Singleton, Thread):
     This is done via implementing `EthDelegate` and `WebDelegate` abstract classes.
     """
 
-    def __init__(self, config: BrokerConfig):
+    def __init__(self, eth_server: str, abi_path: str, pandora: str, node: str, use_hooks: bool = False):
         """
         Instantiates Broker object and its members, but does not initiates them (network interfaces are not created/
         bind etc). Broker follows two-step initialization pattern (`Broker(...)` followed by `broker.run` call.
@@ -37,12 +31,13 @@ class Broker (Singleton, Thread):
         self.logger = logging.getLogger("broker")
 
         # Saving config
-        self.config = config
+        self.eth_server = eth_server
+        self.abi_path = abi_path
 
         # Instantiating services objects
-        econf = self.config.eth
-        self.eth = EthConnector(host=econf.server, port=econf.port, address=econf.contract,
-                                abi_path=econf.abi, abi_file='PandoraHooks' if econf.hooks else 'Pandora')
+        self.pandora = EthConnector(server=self.eth_server, address=pandora,
+                                    abi_path=self.abi_path, abi_file='PandoraHooks' if use_hooks else 'Pandora')
+        self.node = EthConnector(server=self.eth_server, address=node, abi_path=self.abi_path, abi_file='WorkerNode')
         # self.api = WebAPI(config=self.config.webapi, delegate=self)
 
     def run(self) -> bool:
@@ -74,8 +69,10 @@ class Broker (Singleton, Thread):
 
         result = True
         try:
-            result &= self.eth.connect()
-            result &= self.eth.init_contract() if result else False
+            result &= self.pandora.connect()
+            result &= self.pandora.init_contract() if result else False
+            result &= self.node.connect() if result else False
+            result &= self.node.init_contract() if result else False
         except Exception as ex:
             self.logger.error("Exception connecting to Ethereum: %s", type(ex))
             self.logger.error(ex.args)
