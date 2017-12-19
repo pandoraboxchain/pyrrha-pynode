@@ -1,7 +1,7 @@
-from eth.stateful_contract import *
+from .node_actions import *
 
 
-class WorkerNode(StatefulContract):
+class WorkerNode(NodeActions):
     # States
 
     OFFLINE = 1
@@ -84,7 +84,7 @@ class WorkerNode(StatefulContract):
         pass
 
     def state_offline_on_enter(self, from_state: int):
-        pass
+        self.transact_alive()
 
     def state_offline_on_exit(self, from_state: int):
         pass
@@ -96,31 +96,31 @@ class WorkerNode(StatefulContract):
         pass
 
     def state_assigned_on_enter(self, from_state: int):
-        pass
+        self.transact_accept_assignment()
 
     def state_assigned_on_exit(self, from_state: int):
         pass
 
     def state_rfdv_on_enter(self, from_state: int):
-        pass
+        self.transact_process_to_data_validation()
 
     def state_rfdv_on_exit(self, from_state: int):
         pass
 
     def state_validating_data_on_enter(self, from_state: int):
-        pass
+        self.transact_accept_valid_data()
 
     def state_validating_data_on_exit(self, from_state: int):
         pass
 
     def state_ready_for_computing_on_enter(self, from_state: int):
-        pass
+        self.transact_process_to_cognition()
 
     def state_ready_for_computing_on_exit(self, from_state: int):
         pass
 
     def state_computing_on_enter(self, from_state: int):
-        pass
+        self.transact_provide_results('')
 
     def state_computing_on_exit(self, from_state: int):
         pass

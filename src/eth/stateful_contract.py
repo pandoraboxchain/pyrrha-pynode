@@ -12,20 +12,29 @@ class StatefulContract(EthConnector, StateMachine):
         StateMachine.__init__(self, table=table)
 
     def bootstrap(self) -> bool:
-        self.connect()
         self.init_contract()
         self.__process_state()
-        self.bind_event('StateChanged', self.__on_state_changed)
-        self.event_filter.join()
-        return True
+        return self.__bind_events()
 
     def __process_state(self):
         state = self.contract.call().currentState()
-        self.logger.debug("Contract %s initial state is %s", self.abi_file, state)
+        self.logger.debug("Contract %s initial state is %s", self.abi_file, self.state_table[state].name)
         self.state = state
+
+    def __bind_events(self) -> bool:
+        self.logger.debug("Binding state changing events")
+        try:
+            self.bind_event('StateChanged', self.__on_state_changed)
+            self.event_filter.join()
+        except Exception as ex:
+            self.logger.error("Error binging events: %s", type(ex))
+            self.logger.error(ex.args)
+            return False
+        return True
 
     def __on_state_changed(self, event: dict):
         state_old = event['args']['oldState']
         state_new = event['args']['newDtate']
-        self.logger.debug("Contract %s changed its state from %s to %s", self.abi_file, state_old, state_new)
+        self.logger.debug("Contract %s changed its state from %s to %s",
+                          self.abi_file, self.state_table[state_old].name, self.state_table[state_new].name)
         self.state = state_new

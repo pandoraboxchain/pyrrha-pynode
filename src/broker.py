@@ -1,6 +1,8 @@
 import logging
 import time
 from threading import Thread
+from os.path import exists
+from scrypt import decrypt
 
 from patterns.singleton import *
 from eth.eth_connector import EthConnector
@@ -15,7 +17,7 @@ class Broker (Singleton, Thread):
     This is done via implementing `EthDelegate` and `WebDelegate` abstract classes.
     """
 
-    def __init__(self, eth_server: str, abi_path: str, pandora: str, node: str, use_hooks: bool = False):
+    def __init__(self, eth_server: str, abi_path: str, pandora: str, node: str, vault: str, use_hooks: bool = False):
         """
         Instantiates Broker object and its members, but does not initiates them (network interfaces are not created/
         bind etc). Broker follows two-step initialization pattern (`Broker(...)` followed by `broker.run` call.
@@ -34,17 +36,19 @@ class Broker (Singleton, Thread):
         # Saving config
         self.eth_server = eth_server
         self.abi_path = abi_path
+        self.vault = vault
 
         # Instantiating services objects
-        self.pandora = EthConnector(server=self.eth_server, address=pandora,
+        EthConnector.server = self.eth_server
+        self.pandora = EthConnector(address=pandora,
                                     abi_path=self.abi_path, abi_file='PandoraHooks' if use_hooks else 'Pandora')
-        self.node = WorkerNode(server=self.eth_server, address=node, abi_path=self.abi_path, abi_file='WorkerNode')
+        self.node = WorkerNode(address=node, abi_path=self.abi_path, abi_file='WorkerNode')
         # self.api = WebAPI(config=self.config.webapi, delegate=self)
 
     def run(self):
         time.sleep(1000000)
 
-    def connect(self) -> bool:
+    def connect(self, password: str) -> bool:
         """
         Starts all necessary interfaces (WebAPI, Ethereum and its underlying interfaces). Fails if any of them failed.
 
@@ -57,20 +61,22 @@ class Broker (Singleton, Thread):
         #     self.logger.error("Can't bind to Web API port, shutting down")
         #     return False
 
-        # Now trying to connect Ethereum node JSON RPC interface
-        # self.logger.debug("API started successfully")
-        # self.logger.debug("Starting broker...")
-        # if not self.eth.bind():
-        #     self.logger.error("Can't connect Ethereum network, shutting down")
-        #     return False
-
         # Since all necessary network environments are available for now we can run the services as a separate threads
         # self.api.run()
-        # self.eth.run()
+
+        self.logger.debug("Opening vault file %s with private key", self.vault)
+        if not exists(self.vault):
+            self.logger.error("Ethereum account vault file %s is not present, exiting", self.vault)
+            return False
+
+        with open(self.vault, 'rb') as file:
+            cypher = file.read()
+            pri_key = decrypt(cypher, password)
+        self.logger.debug("Private key successfully read")
 
         result = True
         try:
-            result &= self.pandora.connect()
+            result &= EthConnector.connect(pri_key)
             result &= self.pandora.init_contract() if result else False
             result &= self.node.bootstrap() if result else False
         except Exception as ex:

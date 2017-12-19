@@ -37,37 +37,51 @@ class EthConnector:
 
     read_abi = staticmethod(read_abi)
 
-    def __init__(self, server: str, address: str, abi_path: str, abi_file: str):
+    web3 = None
+    account = None
+    server = None
+
+    def __init__(self, address: str, abi_path: str, abi_file: str):
         # Initializing logger object
         self.logger = logging.getLogger("EthConnector")
 
         # Saving config
-        self.server = server
         self.address = address
         self.abi_path = abi_path
         self.abi_file = abi_file
 
         # Initializing empty config
-        self.web3 = None
         self.contract = None
         self.event_filter = None
 
-    @run_once
-    def connect(self) -> bool:
-        self.logger.debug('Connecting Ethereum node on %s...', self.server)
+    @staticmethod
+    def connect(private_key: str) -> bool:
+        if EthConnector.web3 is not None:
+            return True
+
+        logging.debug('Connecting Ethereum node on %s...', EthConnector.server)
         try:
-            self.web3 = Web3(HTTPProvider(self.server))
-            info = self.web3.eth.syncing
+            EthConnector.web3 = Web3(HTTPProvider(EthConnector.server))
+            info = EthConnector.web3.eth.syncing
         except Exception as ex:
-            self.logger.error('Error connecting Ethereum node: %s', type(ex))
-            self.logger.error(ex.args)
+            logging.error('Error connecting Ethereum node: %s', type(ex))
+            logging.error(ex.args)
             return False
 
         if info is not False:
-            self.logger.error('Ethereum node is not in synch')
+            logging.error('Ethereum node is not in synch')
             return False
 
-        self.logger.debug('Ethereum node connected successfully')
+        try:
+            pass
+            # EthConnector.account = EthConnector.web3.eth.account.privateKeyToAccount(private_key)
+        except Exception as ex:
+            logging.error('Error initializing Ethereum account: %s', type(ex))
+            logging.error(ex.args)
+            EthConnector.web3 = None
+            return False
+
+        logging.debug('Ethereum node connected successfully')
         return True
 
     @run_once

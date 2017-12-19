@@ -57,14 +57,17 @@ class StateMachine:
     def state(self, to_state: State):
         from_state = self.__state
 
-        if to_state not in self.state_table[from_state].transits_to:
-            if self.force_rules:
-                raise StateTransitionError(from_state=from_state, to_state=to_state)
-            else:
-                logging.warning("Unregistered state transition from %s to %s",
-                                self.state_table[from_state], self.state_table[to_state])
+        if from_state is not None:
+            if to_state not in self.state_table[from_state].transits_to:
+                if self.force_rules:
+                    raise StateTransitionError(from_state=from_state, to_state=to_state)
+                else:
+                    logging.warning("Unregistered state transition from %s to %s",
+                                    self.state_table[from_state].name, self.state_table[to_state].name)
+                    return
 
-        self.state_table[from_state].on_exit(to_state)
+            self.state_table[from_state].on_exit(to_state)
+
         self.__state = to_state
         self.state_table[to_state].on_enter(from_state)
 
