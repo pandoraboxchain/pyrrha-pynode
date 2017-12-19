@@ -3,6 +3,12 @@ from eth.stateful_contract import *
 
 class NodeActions(StatefulContract):
 
+    def cognitive_job_address(self) -> str:
+        address = self.contract.call().activeJob()
+        if address is '0':
+            address = None
+        return address
+
     def transact_alive(self):
         self.logger.debug('Sending alive status')
         pass
@@ -25,4 +31,4 @@ class NodeActions(StatefulContract):
 
     def transact_provide_results(self, ipfs_file: str):
         self.logger.debug('Providing results')
-        self.transact('provideResults', lambda tx: tx.provideResults(''))
+        self.transact('provideResults', lambda tx: tx.provideResults(ipfs_file))

@@ -6,11 +6,12 @@ from scrypt import decrypt
 
 from patterns.singleton import *
 from eth.eth_connector import EthConnector
-from node.worker_node import WorkerNode
+from node.worker_node import *
+from job.cognitive_job import *
 from webapi.webapi import *
 
 
-class Broker (Singleton, Thread):
+class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate):
     """
     Broker manages all underlying services/threads and arranges communications between them. Broker directly manages
     WebAPI and Ethereum threads and provides delegate interfaces for capturing their output via callback functions.
@@ -42,11 +43,9 @@ class Broker (Singleton, Thread):
         EthConnector.server = self.eth_server
         self.pandora = EthConnector(address=pandora,
                                     abi_path=self.abi_path, abi_file='PandoraHooks' if use_hooks else 'Pandora')
-        self.node = WorkerNode(address=node, abi_path=self.abi_path, abi_file='WorkerNode')
+        self.node = WorkerNode(delegate=self, address=node, abi_path=self.abi_path, abi_file='WorkerNode')
+        self.jobs = {}
         # self.api = WebAPI(config=self.config.webapi, delegate=self)
-
-    def run(self):
-        time.sleep(1000000)
 
     def connect(self, password: str) -> bool:
         """
@@ -56,7 +55,7 @@ class Broker (Singleton, Thread):
         """
 
         # Trying to bind web api port (to fail early before trying everything else more complex)
-        # self.logger.debug("Statring api...")
+        # self.logger.debug("Starting api...")
         # if not self.api.bind():
         #     self.logger.error("Can't bind to Web API port, shutting down")
         #     return False
@@ -74,15 +73,24 @@ class Broker (Singleton, Thread):
             pri_key = decrypt(cypher, password)
         self.logger.debug("Private key successfully read")
 
-        result = True
         try:
-            result &= EthConnector.connect(pri_key)
+            result = EthConnector.connect(pri_key)
             result &= self.pandora.init_contract() if result else False
-            result &= self.node.bootstrap() if result else False
+            result &= self.node.init_contract() if result else False
         except Exception as ex:
-            self.logger.error("Exception connecting to Ethereum: %s", type(ex))
+            self.logger.error("Exception initializing contracts: %s", type(ex))
             self.logger.error(ex.args)
             return False
+        if result is not True:
+            self.logger.error("Unable to start broker, exiting")
+            return False
+
+        job_address = self.node.cognitive_job_address()
+        if job_address is not None:
+            result = self.init_cognitive_job(job_address)
+
+        result &= self.node.bootstrap() if result else False
+
         if result is not True:
             self.logger.error("Unable to start broker, exiting")
             return False
@@ -92,3 +100,39 @@ class Broker (Singleton, Thread):
         super().start()
 
         return True
+
+    def init_cognitive_job(self, job_address: str) -> bool:
+        self.logger.debug("Initializing cognitive job contract for address %s", job_address)
+        if job_address in self.jobs:
+            raise Exception('Internal inconsistency: cognitive job is already initialized')
+        return self.__init_cognitive_job(job_address)
+
+    def create_cognitive_job(self, job_address: str):
+        if job_address in self.jobs:
+            return
+        self.logger.debug("Initializing cognitive job contract for address %s", job_address)
+        if self.__init_cognitive_job(job_address) is False:
+            self.logger.error("Error initializing cognitive job for address %s", job_address)
+
+    def __init_cognitive_job(self, job_address: str) -> bool:
+        try:
+            job = CognitiveJob(delegate=self, address=job_address, abi_path=self.abi_path, abi_file='CognitiveJob')
+            result = job.init_contract()
+            result &= job.bootstrap() if result else False
+        except Exception as ex:
+            self.logger.error("Exception initializing cognitive job contract: %s", type(ex))
+            self.logger.error(ex.args)
+            return False
+        if result is not True:
+            return False
+        self.jobs[job_address] = job
+        return True
+
+    def start_validating(self, node):
+        pass
+
+    def start_computing(self, node):
+        pass
+
+    def terminate_job(self, job):
+        pass

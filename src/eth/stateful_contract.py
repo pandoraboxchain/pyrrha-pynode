@@ -12,7 +12,6 @@ class StatefulContract(EthConnector, StateMachine):
         StateMachine.__init__(self, table=table)
 
     def bootstrap(self) -> bool:
-        self.init_contract()
         self.__process_state()
         return self.__bind_events()
 

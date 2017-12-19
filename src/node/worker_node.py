@@ -1,7 +1,24 @@
+from abc import *
+
 from .node_actions import *
 
 
+class WorkerNodeDelegate(metaclass=ABCMeta):
+    @abstractmethod
+    def create_cognitive_job(self, address: str):
+        pass
+
+    @abstractmethod
+    def start_validating(self, node):
+        pass
+
+    @abstractmethod
+    def start_computing(self, node):
+        pass
+
+
 class WorkerNode(NodeActions):
+
     # States
 
     OFFLINE = 1
@@ -14,125 +31,128 @@ class WorkerNode(NodeActions):
     INSUFFICIENT_STAKE = 8
     UNDER_PENALTY = 9
 
-    # State table
+    def __init__(self, delegate: WorkerNodeDelegate, *args, **kwargs):
 
-    def __init__(self, *args, **kwargs):
+        self.delegate = delegate
+
+        # State table
         table = {
             self.UNINITIALIZED: StateTableEntry('Uninitialized',
                                                 transits_to=[self.IDLE, self.OFFLINE, self.INSUFFICIENT_STAKE],
-                                                on_enter=self.state_uninitialized_on_enter,
-                                                on_exit=self.state_uninitialized_on_exit),
+                                                on_enter=self.on_enter_state_uninitialized,
+                                                on_exit=self.on_exit_state_uninitialized),
             self.DESTROYED: StateTableEntry('Destroyed',
                                             transits_to=[],
-                                            on_enter=self.state_destroyed_on_enter,
-                                            on_exit=self.state_destroyed_on_exit),
+                                            on_enter=self.on_enter_state_destroyed,
+                                            on_exit=self.on_exit_state_destroyed),
 
             self.OFFLINE: StateTableEntry('Offline',
                                           transits_to=[self.IDLE],
-                                          on_enter=self.state_offline_on_enter,
-                                          on_exit=self.state_offline_on_exit),
+                                          on_enter=self.on_enter_state_offline,
+                                          on_exit=self.on_exit_state_offline),
             self.IDLE: StateTableEntry('Idle',
                                        transits_to=[self.OFFLINE, self.ASSIGNED,
                                                     self.UNDER_PENALTY, self.DESTROYED],
-                                       on_enter=self.state_idle_on_enter,
-                                       on_exit=self.state_idle_on_exit),
+                                       on_enter=self.on_enter_state_idle,
+                                       on_exit=self.on_exit_state_idle),
             self.ASSIGNED: StateTableEntry('Assigned',
                                            transits_to=[self.OFFLINE, self.READY_FOR_DATA_VALIDATION,
                                                         self.UNDER_PENALTY],
-                                           on_enter=self.state_assigned_on_enter,
-                                           on_exit=self.state_assigned_on_exit),
+                                           on_enter=self.on_enter_state_assigned,
+                                           on_exit=self.on_exit_state_assigned),
             self.READY_FOR_DATA_VALIDATION: StateTableEntry('ReadyForDataValidation',
                                                             transits_to=[self.OFFLINE, self.VALIDATING_DATA, self.IDLE,
                                                                          self.UNDER_PENALTY],
-                                                            on_enter=self.state_rfdv_on_enter,
-                                                            on_exit=self.state_rfdv_on_exit),
+                                                            on_enter=self.on_enter_state_rfdv,
+                                                            on_exit=self.on_exit_state_rfdv),
             self.VALIDATING_DATA: StateTableEntry('ValidatingData',
                                                   transits_to=[self.OFFLINE, self.IDLE, self.READY_FOR_COMPUTING,
                                                                self.UNDER_PENALTY],
-                                                  on_enter=self.state_validating_data_on_enter,
-                                                  on_exit=self.state_validating_data_on_exit),
+                                                  on_enter=self.on_enter_state_validating_data,
+                                                  on_exit=self.on_exit_state_validating_data),
             self.READY_FOR_COMPUTING: StateTableEntry('ReadyForComputing',
                                                       transits_to=[self.OFFLINE, self.IDLE, self.COMPUTING,
                                                                    self.UNDER_PENALTY],
-                                                      on_enter=self.state_ready_for_computing_on_enter,
-                                                      on_exit=self.state_ready_for_computing_on_exit),
+                                                      on_enter=self.on_enter_state_ready_for_computing,
+                                                      on_exit=self.on_exit_state_ready_for_computing),
             self.COMPUTING: StateTableEntry('Computing',
                                             transits_to=[self.OFFLINE, self.IDLE, self.UNDER_PENALTY],
-                                            on_enter=self.state_computing_on_enter,
-                                            on_exit=self.state_computing_on_exit),
+                                            on_enter=self.on_enter_state_computing,
+                                            on_exit=self.on_exit_state_computing),
             self.INSUFFICIENT_STAKE: StateTableEntry('InsufficientStake',
                                                      transits_to=[self.OFFLINE, self.IDLE, self.DESTROYED],
-                                                     on_enter=self.state_insufficient_stake_on_enter,
-                                                     on_exit=self.state_insufficient_stake_on_exit),
+                                                     on_enter=self.on_enter_state_insufficient_stake,
+                                                     on_exit=self.on_exit_state_insufficient_stake),
             self.UNDER_PENALTY: StateTableEntry('UnderPenalty',
                                                 transits_to=[self.OFFLINE, self.IDLE, self.INSUFFICIENT_STAKE],
-                                                on_enter=self.state_under_penalty_on_enter,
-                                                on_exit=self.state_under_penalty_on_exit),
+                                                on_enter=self.on_enter_state_under_penalty,
+                                                on_exit=self.on_exit_state_under_penalty),
         }
         super().__init__(table=table, *args, **kwargs)
 
-    def state_uninitialized_on_enter(self, from_state: int):
+    def on_enter_state_uninitialized(self, from_state: int):
         pass
 
-    def state_uninitialized_on_exit(self, from_state: int):
+    def on_exit_state_uninitialized(self, to_state: int):
         pass
 
-    def state_destroyed_on_enter(self, from_state: int):
+    def on_enter_state_destroyed(self, from_state: int):
         pass
 
-    def state_destroyed_on_exit(self, from_state: int):
+    def on_exit_state_destroyed(self, to_state: int):
         pass
 
-    def state_offline_on_enter(self, from_state: int):
+    def on_enter_state_offline(self, from_state: int):
         self.transact_alive()
 
-    def state_offline_on_exit(self, from_state: int):
+    def on_exit_state_offline(self, to_state: int):
         pass
 
-    def state_idle_on_enter(self, from_state: int):
+    def on_enter_state_idle(self, from_state: int):
         pass
 
-    def state_idle_on_exit(self, from_state: int):
+    def on_exit_state_idle(self, to_state: int):
         pass
 
-    def state_assigned_on_enter(self, from_state: int):
+    def on_enter_state_assigned(self, from_state: int):
+        self.delegate.create_cognitive_job(self.cognitive_job_address())
         self.transact_accept_assignment()
 
-    def state_assigned_on_exit(self, from_state: int):
+    def on_exit_state_assigned(self, to_state: int):
         pass
 
-    def state_rfdv_on_enter(self, from_state: int):
+    def on_enter_state_rfdv(self, from_state: int):
         self.transact_process_to_data_validation()
 
-    def state_rfdv_on_exit(self, from_state: int):
+    def on_exit_state_rfdv(self, to_state: int):
         pass
 
-    def state_validating_data_on_enter(self, from_state: int):
+    def on_enter_state_validating_data(self, from_state: int):
         self.transact_accept_valid_data()
 
-    def state_validating_data_on_exit(self, from_state: int):
+    def on_exit_state_validating_data(self, to_state: int):
         pass
 
-    def state_ready_for_computing_on_enter(self, from_state: int):
+    def on_enter_state_ready_for_computing(self, from_state: int):
         self.transact_process_to_cognition()
 
-    def state_ready_for_computing_on_exit(self, from_state: int):
+    def on_exit_state_ready_for_computing(self, to_state: int):
         pass
 
-    def state_computing_on_enter(self, from_state: int):
+    def on_enter_state_computing(self, from_state: int):
         self.transact_provide_results('')
 
-    def state_computing_on_exit(self, from_state: int):
+    def on_exit_state_computing(self, to_state: int):
         pass
 
-    def state_insufficient_stake_on_enter(self, from_state: int):
+    def on_enter_state_insufficient_stake(self, from_state: int):
         pass
 
-    def state_insufficient_stake_on_exit(self, from_state: int):
+    def on_exit_state_insufficient_stake(self, from_state: int):
         pass
 
-    def state_under_penalty_on_enter(self, from_state: int):
+    def on_enter_state_under_penalty(self, from_state: int):
         pass
 
-    def state_under_penalty_on_exit(self, from_state: int):
+    def on_exit_state_under_penalty(self, from_state: int):
         pass
