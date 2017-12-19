@@ -55,7 +55,7 @@ class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate):
         """
 
         # Trying to bind web api port (to fail early before trying everything else more complex)
-        # self.logger.debug("Starting api...")
+        # self.logger.info("Starting api...")
         # if not self.api.bind():
         #     self.logger.error("Can't bind to Web API port, shutting down")
         #     return False
@@ -63,7 +63,7 @@ class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate):
         # Since all necessary network environments are available for now we can run the services as a separate threads
         # self.api.run()
 
-        self.logger.debug("Opening vault file %s with private key", self.vault)
+        self.logger.info("Opening vault file %s with private key", self.vault)
         if not exists(self.vault):
             self.logger.error("Ethereum account vault file %s is not present, exiting", self.vault)
             return False
@@ -71,7 +71,7 @@ class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate):
         with open(self.vault, 'rb') as file:
             cypher = file.read()
             pri_key = decrypt(cypher, password)
-        self.logger.debug("Private key successfully read")
+        self.logger.info("Private key successfully read")
 
         try:
             result = EthConnector.connect(pri_key)
@@ -95,14 +95,14 @@ class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate):
             self.logger.error("Unable to start broker, exiting")
             return False
 
-        self.logger.debug("Broker started successfully")
+        self.logger.info("Broker started successfully")
 
         super().start()
 
         return True
 
     def init_cognitive_job(self, job_address: str) -> bool:
-        self.logger.debug("Initializing cognitive job contract for address %s", job_address)
+        self.logger.info("Initializing cognitive job contract for address %s", job_address)
         if job_address in self.jobs:
             raise Exception('Internal inconsistency: cognitive job is already initialized')
         return self.__init_cognitive_job(job_address)
@@ -110,7 +110,7 @@ class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate):
     def create_cognitive_job(self, job_address: str):
         if job_address in self.jobs:
             return
-        self.logger.debug("Initializing cognitive job contract for address %s", job_address)
+        self.logger.info("Initializing cognitive job contract for address %s", job_address)
         if self.__init_cognitive_job(job_address) is False:
             self.logger.error("Error initializing cognitive job for address %s", job_address)
 

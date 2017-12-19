@@ -10,25 +10,25 @@ class NodeActions(StatefulContract):
         return address
 
     def transact_alive(self):
-        self.logger.debug('Sending alive status')
+        self.logger.info('Sending alive status')
         pass
 
     def transact_accept_assignment(self):
-        self.logger.debug('Accepting assignment')
+        self.logger.info('Accepting assignment')
         self.transact('acceptAssignment', lambda tx: tx.acceptAssignment())
 
     def transact_process_to_data_validation(self):
-        self.logger.debug('Processing to data validation')
+        self.logger.info('Processing to data validation')
         self.transact('processToDataValidation', lambda tx: tx.processToDataValidation())
 
     def transact_accept_valid_data(self):
-        self.logger.debug('Confirming data validness')
+        self.logger.info('Confirming data validness')
         self.transact('acceptValidData', lambda tx: tx.acceptValidData())
 
     def transact_process_to_cognition(self):
-        self.logger.debug('Processing to cognitive work')
+        self.logger.info('Processing to cognitive work')
         self.transact('processToCognition', lambda tx: tx.processToCognition())
 
     def transact_provide_results(self, ipfs_file: str):
-        self.logger.debug('Providing results')
+        self.logger.info('Providing results')
         self.transact('provideResults', lambda tx: tx.provideResults(ipfs_file))

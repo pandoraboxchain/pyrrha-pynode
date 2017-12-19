@@ -75,9 +75,9 @@ class Processor(Thread):
         return model, dataset
 
     def compute(self, model, dataset):
-        self.logger.debug('Computing...')
+        self.logger.info('Computing...')
         out = model.predict(dataset)
 
-        self.logger.debug('Computing completed successfully, saving results to a file')
+        self.logger.info('Computing completed successfully, saving results to a file')
         h5w = h5py.File('out.hdf5', 'w')
         h5w.create_dataset('dataset', data=out)

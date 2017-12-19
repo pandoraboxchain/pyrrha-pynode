@@ -57,13 +57,14 @@ class EthConnector:
         # Initializing empty config
         self.contract = None
         self.event_filter = None
+        self.owner = None
 
     @staticmethod
     def connect(private_key: str) -> bool:
         if EthConnector.web3 is not None:
             return True
 
-        logging.debug('Connecting Ethereum node on %s...', EthConnector.server)
+        logging.info('Connecting Ethereum node on %s...', EthConnector.server)
         try:
             EthConnector.web3 = Web3(HTTPProvider(EthConnector.server))
             info = EthConnector.web3.eth.syncing
@@ -85,7 +86,7 @@ class EthConnector:
             EthConnector.web3 = None
             return False
 
-        logging.debug('Ethereum node connected successfully')
+        logging.info('Ethereum node connected successfully')
         return True
 
     @run_once
@@ -100,7 +101,7 @@ class EthConnector:
         # Calling getter method to check whether contract was initiated with a proper address
         # (corresponding to the given ABI)
         try:
-            self.contract.call().owner()
+            self.owner = self.contract.call().owner()
         except Exception as ex:
             self.logger.error('Wrong contract address or ABI, got exception %s', type(ex))
             self.logger.error(ex.args)
@@ -120,7 +121,7 @@ class EthConnector:
         if self.web3 is None:
             raise NotInitialized()
 
-        self.logger.debug('Reading contract ABI %s...', abi_file)
+        self.logger.info('Reading contract ABI %s...', abi_file)
         try:
             abi = read_abi(self.abi_path, abi_file)
         except Exception as ex:
@@ -128,14 +129,14 @@ class EthConnector:
             self.logger.error(ex.args)
             return None
 
-        self.logger.debug('Getting contract %s...', address)
+        self.logger.info('Getting contract %s...', address)
         try:
             contract = self.web3.eth.contract(address=address, abi=abi)
         except Exception as ex:
             self.logger.error('Error getting contract: %s', type(ex))
             self.logger.error(ex.args)
             return None
-        self.logger.debug('Contract ABI instantiated')
+        self.logger.info('Contract ABI instantiated')
 
         return contract
 

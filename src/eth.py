@@ -97,14 +97,14 @@ class Eth(Thread):
     ##
 
     def __connect_ethereum(self) -> bool:
-        self.logger.debug('Connecting to Ethereum node on %s:%d...', self.config.server, self.config.port)
+        self.logger.info('Connecting to Ethereum node on %s:%d...', self.config.server, self.config.port)
         try:
             self.web3 = Web3(KeepAliveRPCProvider(host=self.config.server, port=self.config.port))
         except Exception as ex:
             self.logger.error('Error connecting Ethereum node: %s', type(ex))
             self.logger.error(ex.args)
             return False
-        self.logger.debug('Ethereum node connected successfully')
+        self.logger.info('Ethereum node connected successfully')
         return True
 
     def __load_abi(self) -> bool:
@@ -121,14 +121,14 @@ class Eth(Thread):
         abi_file = self.ABI_PANDORA_HOOKS if self.config.hooks is True else self.ABI_PANDORA
         abi = read_abi(self.config.abi, abi_file)
 
-        self.logger.debug('Getting root contract %s...', self.config.contract)
+        self.logger.info('Getting root contract %s...', self.config.contract)
         try:
             self.pandora_contract = self.web3.eth.contract(address=self.config.contract, abi=abi)
         except Exception as ex:
             self.logger.error('Error connecting Ethereum node: %s', type(ex))
             self.logger.error(ex.args)
             return False
-        self.logger.debug('Root contract ABI instantiated')
+        self.logger.info('Root contract ABI instantiated')
         return True
 
     ##
@@ -137,7 +137,7 @@ class Eth(Thread):
 
     def __on_cognitive_job_created(self, event: dict):
         address = event['args']['cognitiveJob']
-        self.logger.debug('=> Got new cognitive job contract %s', address)
+        self.logger.info('=> Got new cognitive job contract %s', address)
         contract = self.web3.eth.contract(address=address, abi=self.abi[self.ABI_COGNITIVE_JOB])
         # event = CognitiveJobCreated(contract, address)
         # self.trigger(event)

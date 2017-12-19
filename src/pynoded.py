@@ -6,15 +6,15 @@ from configparser import ConfigParser
 
 from broker import Broker
 
-logging.basicConfig(level=logging.DEBUG,
+logging.basicConfig(level=logging.INFO,
                     format='(%(threadName)-10s) %(levelname)s: %(message)s',
                     )
 
 
 def run(config_file: str, password: str):
-    logging.debug('Starting broker with config')
+    logging.info('Starting broker with config')
 
-    logging.debug("Loading config file '%s'", config_file)
+    logging.info("Loading config file '%s'", config_file)
     try:
         config = ConfigParser()
         config.read(config_file)
