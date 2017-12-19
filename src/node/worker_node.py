@@ -128,7 +128,7 @@ class WorkerNode(NodeActions):
         pass
 
     def on_enter_state_validating_data(self, from_state: int):
-        self.transact_accept_valid_data()
+        self.delegate.start_validating()
 
     def on_exit_state_validating_data(self, to_state: int):
         pass
@@ -140,7 +140,7 @@ class WorkerNode(NodeActions):
         pass
 
     def on_enter_state_computing(self, from_state: int):
-        self.transact_provide_results('')
+        self.delegate.start_computing(self)
 
     def on_exit_state_computing(self, to_state: int):
         pass

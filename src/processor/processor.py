@@ -1,5 +1,6 @@
 import h5py
 import logging
+from abc import *
 from threading import Thread
 from ipfs.ipfs_connector import *
 from entities.kernel import Kernel
@@ -19,13 +20,27 @@ class DataInconsistencyError (Exception):
     pass
 
 
-class ProcessorDelegate:
-    pass
+class ProcessorDelegate(metaclass=ABCMeta):
+    @abstractmethod
+    def processor_load_complete(self, processor_id: str):
+        pass
+
+    @abstractmethod
+    def processor_load_failure(self, processor_id: str):
+        pass
+
+    @abstractmethod
+    def processor_computing_complete(self, processor_id: str, results_file: str):
+        pass
+
+    @abstractmethod
+    def processor_computing_failure(self, processor_id: str):
+        pass
 
 
 class Processor(Thread):
 
-    def __init__(self, ipfs_server: str, ipfs_port: int, data_dir: str, abi_path: str, delegate: ProcessorDelegate):
+    def __init__(self, id: str, ipfs_server: str, ipfs_port: int, data_dir: str, abi_path: str, delegate: ProcessorDelegate):
 
         super().__init__()
 
@@ -33,12 +48,13 @@ class Processor(Thread):
         self.logger = logging.getLogger("Processor")
 
         # Configuring
-        self.delegate = delegate
+        self.id = id
         self.data_dir = data_dir
         self.abi_path = abi_path
         self.results_file = None
         self.kernel = None
         self.dataset = None
+        self.delegate = delegate
 
         # Initializing IPFS
         self.ipfs = IPFSConnector(server=ipfs_server, port=ipfs_port, data_dir=data_dir)
@@ -60,6 +76,7 @@ class Processor(Thread):
     def load(self):
         self.kernel.read_model()
         self.dataset.read_dataset()
+        self.delegate.processor_load_complete(self.id)
 
     def compute(self, model, dataset):
         self.load()
@@ -72,3 +89,4 @@ class Processor(Thread):
         self.results_file = 'out.hdf5'
         h5w = h5py.File(self.results_file, 'w')
         h5w.create_dataset('dataset', data=out)
+        self.delegate.processor_computing_complete(self.id, self.results_file)

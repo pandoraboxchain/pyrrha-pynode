@@ -17,6 +17,10 @@ class NodeActions(StatefulContract):
         self.logger.info('Accepting assignment')
         self.transact('acceptAssignment', lambda tx: tx.acceptAssignment())
 
+    def transact_decline_assignment(self):
+        self.logger.info('Declining assignment')
+        self.transact('declineAssignment', lambda tx: tx.declineAssignment())
+
     def transact_process_to_data_validation(self):
         self.logger.info('Processing to data validation')
         self.transact('processToDataValidation', lambda tx: tx.processToDataValidation())
@@ -24,6 +28,14 @@ class NodeActions(StatefulContract):
     def transact_accept_valid_data(self):
         self.logger.info('Confirming data validness')
         self.transact('acceptValidData', lambda tx: tx.acceptValidData())
+
+    def transact_decline_valid_data(self):
+        self.logger.info('Confirming data validness but declining task')
+        self.transact('declineValidData', lambda tx: tx.declineValidData())
+
+    def transact_report_invalid_data(self):
+        self.logger.info('Reporting invalid data')
+        self.transact('reportInvalidData', lambda tx: tx.reportInvalidData())
 
     def transact_process_to_cognition(self):
         self.logger.info('Processing to cognitive work')

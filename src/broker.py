@@ -163,7 +163,7 @@ class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proce
         if processor_id in self.processors:
             return self.processors[processor_id]
 
-        processor = Processor(ipfs_server=self.ipfs_server, ipfs_port=self.ipfs_port,
+        processor = Processor(id=processor_id, ipfs_server=self.ipfs_server, ipfs_port=self.ipfs_port,
                               abi_path=self.abi_path, data_dir=self.data_dir, delegate=self)
         self.processors[processor_id] = processor
         processor.run()
@@ -171,5 +171,18 @@ class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proce
         return processor
 
     def terminate_job(self, job: CognitiveJob):
+        # TODO: Implement
+        pass
+
+    def processor_load_complete(self, processor_id: str):
+        self.node.transact_accept_valid_data()
+
+    def processor_load_failure(self, processor_id: str):
+        self.node.transact_report_invalid_data()
+
+    def processor_computing_complete(self, processor_id: str, results_file: str):
+        self.node.transact_provide_results(results_file)
+
+    def processor_computing_failure(self, processor_id: str):
         # TODO: Implement
         pass
