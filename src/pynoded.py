@@ -28,9 +28,12 @@ def run(config_file: str, password: str):
         eth_contracts = config['Contracts']
         eth_use = eth_section['use']
         eth_server = eth_section[eth_use]
+        ipfs_section = config['IPFS']
+        ipfs_use = config['IPFS.%s' % ipfs_section['use']]
         broker = Broker(eth_server=eth_server, abi_path=eth_contracts['abi_path'],
                         pandora=eth_contracts['pandora'], node=eth_contracts['worker_node'],
-                        vault=config['Account']['vault'],
+                        vault=config['Account']['vault'], data_dir=ipfs_section['store_in'],
+                        ipfs_server=ipfs_use['server'], ipfs_port=int(ipfs_use['port']),
                         use_hooks=eth_contracts.getboolean('hooks'))
     except Exception as ex:
         logging.error("Error reading config: %s, exiting", type(ex))

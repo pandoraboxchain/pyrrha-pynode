@@ -13,7 +13,7 @@ class IPFSConnector:
     def connect(self):
         self.ipfs = ipfsapi.connect(self.server, self.port)
 
-    def download_file(self, file_address: str):
+    def download_file(self, file_address: str) -> bool:
         os.chdir(self.data_dir)
         return self.ipfs.get(file_address)
 

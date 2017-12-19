@@ -1,9 +1,9 @@
-import keras
 import h5py
-import numpy as np
 import logging
-
 from threading import Thread
+from ipfs.ipfs_connector import *
+from entities.kernel import Kernel
+from entities.dataset import Dataset
 
 
 class IPFSError (Exception):
@@ -19,65 +19,56 @@ class DataInconsistencyError (Exception):
     pass
 
 
+class ProcessorDelegate:
+    pass
+
+
 class Processor(Thread):
 
-    def __init__(self, data_dir: str):
+    def __init__(self, ipfs_server: str, ipfs_port: int, data_dir: str, abi_path: str, delegate: ProcessorDelegate):
 
         super().__init__()
 
         # Initializing logger object
-        self.logger = logging.getLogger("processor")
+        self.logger = logging.getLogger("Processor")
 
         # Configuring
+        self.delegate = delegate
         self.data_dir = data_dir
+        self.abi_path = abi_path
+        self.results_file = None
+        self.kernel = None
+        self.dataset = None
 
-    def cognite_batch(self, arch: str, model: str, data: str) -> (str, int):
+        # Initializing IPFS
+        self.ipfs = IPFSConnector(server=ipfs_server, port=ipfs_port, data_dir=data_dir)
+
+    def prepare(self, kernel: str, dataset: str, batch: int) -> bool:
         try:
-            print("Downloading architecture file %s" % arch)
-            self.ipfs_connector.download_file(arch)
+            self.kernel = Kernel(kernel, self.abi_path, 'Kernel', self.ipfs)
+            result = self.kernel.init_contract()
+            self.dataset = Dataset(batch, dataset, self.abi_path, 'Dataset')
+            result &= self.dataset.init_contract()
         except:
-            raise IPFSError("Architecture file not found")
-
-        try:
-            print("Downloading model file %s" % model)
-            self.ipfs_connector.download_file(model)
-        except:
-            raise IPFSError("Model file not found")
-
-        try:
-            print("Downloading data file %s" % data)
-            self.ipfs_connector.download_file(data)
-        except:
-            raise IPFSError("Data file not found")
-
-        print("Running model and data..")
-        self.nn_loader.load_and_run(arch, model, data, self)
-
-        return 'task0', 0
+            return False
+        return result
 
     def get_time_estimate(self):
         # TODO: Implement
         return 0
 
-    def load(self, arch: str, weights: str, data: str):
-        self.logger.debug('Loading kernel architecture...')
-        with open(arch, "r") as json_file:
-            json_model = json_file.read()
-        model = keras.models.model_from_json(json_model)
-
-        self.logger.debug('Loading kernel weights...')
-        model.load_weights(weights)
-        h5f = h5py.File(data, 'r')
-        # FIX: Magic number for dataset name inside HDF5 file!
-        h5ds = h5f['dataset']
-        dataset = np.ndarray(shape=h5ds.shape)
-        h5ds.read_direct(dest=dataset)
-        return model, dataset
+    def load(self):
+        self.kernel.read_model()
+        self.dataset.read_dataset()
 
     def compute(self, model, dataset):
+        self.load()
+
         self.logger.info('Computing...')
         out = model.predict(dataset)
 
         self.logger.info('Computing completed successfully, saving results to a file')
-        h5w = h5py.File('out.hdf5', 'w')
+        # TODO: Replace with unique string
+        self.results_file = 'out.hdf5'
+        h5w = h5py.File(self.results_file, 'w')
         h5w.create_dataset('dataset', data=out)

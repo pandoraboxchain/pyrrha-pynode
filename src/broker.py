@@ -8,17 +8,19 @@ from patterns.singleton import *
 from eth.eth_connector import EthConnector
 from node.worker_node import *
 from job.cognitive_job import *
+from processor.processor import *
 from webapi.webapi import *
 
 
-class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate):
+class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, ProcessorDelegate):
     """
     Broker manages all underlying services/threads and arranges communications between them. Broker directly manages
     WebAPI and Ethereum threads and provides delegate interfaces for capturing their output via callback functions.
     This is done via implementing `EthDelegate` and `WebDelegate` abstract classes.
     """
 
-    def __init__(self, eth_server: str, abi_path: str, pandora: str, node: str, vault: str, use_hooks: bool = False):
+    def __init__(self, eth_server: str, abi_path: str, pandora: str, node: str, vault: str,
+                 ipfs_server: str, ipfs_port: int, data_dir: str, use_hooks: bool = False):
         """
         Instantiates Broker object and its members, but does not initiates them (network interfaces are not created/
         bind etc). Broker follows two-step initialization pattern (`Broker(...)` followed by `broker.run` call.
@@ -38,6 +40,9 @@ class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate):
         self.eth_server = eth_server
         self.abi_path = abi_path
         self.vault = vault
+        self.ipfs_server = ipfs_server
+        self.ipfs_port = ipfs_port
+        self.data_dir = data_dir
 
         # Instantiating services objects
         EthConnector.server = self.eth_server
@@ -45,6 +50,8 @@ class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate):
                                     abi_path=self.abi_path, abi_file='PandoraHooks' if use_hooks else 'Pandora')
         self.node = WorkerNode(delegate=self, address=node, abi_path=self.abi_path, abi_file='WorkerNode')
         self.jobs = {}
+        self.processors = {}
+
         # self.api = WebAPI(config=self.config.webapi, delegate=self)
 
     def connect(self, password: str) -> bool:
@@ -128,11 +135,41 @@ class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate):
         self.jobs[job_address] = job
         return True
 
-    def start_validating(self, node):
-        pass
+    def start_validating(self, node: WorkerNode):
+        self.logger.info("Starting validating data for cognitive job %s...", job_address)
+        processor = self.__init_processor(node)
+        processor.load()
 
-    def start_computing(self, node):
-        pass
+    def start_computing(self, node: WorkerNode):
+        self.logger.info("Starting computing cognitive job %s...", job_address)
+        processor = self.__init_processor(node)
+        processor.compute()
 
-    def terminate_job(self, job):
+    def __init_processor(self, node: WorkerNode) -> Processor:
+        job_address = node.cognitive_job_address()
+        node_address = node.address
+        processor_id = '%s:%s' % (node_address, job_address)
+
+        job = self.jobs[job_address]
+        workers = job.workers()
+        batch = None
+        for idx, w in enumerate(workers):
+            if self.node.address is w:
+                batch = idx
+                break
+        if batch is None:
+            raise Exception("Can't determine worker this node batch number")
+
+        if processor_id in self.processors:
+            return self.processors[processor_id]
+
+        processor = Processor(ipfs_server=self.ipfs_server, ipfs_port=self.ipfs_port,
+                              abi_path=self.abi_path, data_dir=self.data_dir, delegate=self)
+        self.processors[processor_id] = processor
+        processor.run()
+        processor.prepare(kernel=job.kernel_address(), dataset=job.dataset_address(), batch=batch)
+        return processor
+
+    def terminate_job(self, job: CognitiveJob):
+        # TODO: Implement
         pass

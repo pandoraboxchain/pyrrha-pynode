@@ -1,6 +1,6 @@
 from abc import *
 
-from eth.stateful_contract import *
+from .job_getters import *
 
 
 class CognitiveJobDelegate(metaclass=ABCMeta):
@@ -9,7 +9,7 @@ class CognitiveJobDelegate(metaclass=ABCMeta):
         pass
 
 
-class CognitiveJob(StatefulContract):
+class CognitiveJob(JobGetters):
 
     # States
 
