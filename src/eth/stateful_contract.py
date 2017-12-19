@@ -34,7 +34,7 @@ class StatefulContract(EthConnector, StateMachine):
 
     def __on_state_changed(self, event: dict):
         state_old = event['args']['oldState']
-        state_new = event['args']['newDtate']
+        state_new = event['args']['newState']
         self.logger.debug("Contract %s changed its state from %s to %s",
                           self.abi_file, self.state_table[state_old].name, self.state_table[state_new].name)
         self.state = state_new

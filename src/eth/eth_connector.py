@@ -7,6 +7,10 @@ from os import path
 from web3 import Web3, HTTPProvider
 
 
+class CriticalTransactionError(Exception):
+    pass
+
+
 def read_abi(abi_path: str, file: str) -> str:
     """
     Loads ABI from a compiled file
@@ -134,3 +138,13 @@ class EthConnector:
         self.logger.debug('Contract ABI instantiated')
 
         return contract
+
+    def transact(self, name: str, cb: Callable):
+        try:
+            tx = self.contract.transact({'from': self.web3.eth.accounts[0]})
+            cb(tx)
+        except Exception as ex:
+            self.logger.error("Error executing %s transaction: %s", name, type(ex))
+            self.logger.error(ex.args)
+
+            raise CriticalTransactionError(name)
