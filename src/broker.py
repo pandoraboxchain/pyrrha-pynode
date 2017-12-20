@@ -1,8 +1,10 @@
+import sys
 import logging
 import time
 from threading import Thread
 from os.path import exists
 from scrypt import decrypt
+from typing import Union
 
 from patterns.singleton import *
 from eth.eth_connector import EthConnector
@@ -12,12 +14,16 @@ from processor.processor import *
 from webapi.webapi import *
 
 
-class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, ProcessorDelegate):
+class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, ProcessorDelegate):
     """
     Broker manages all underlying services/threads and arranges communications between them. Broker directly manages
     WebAPI and Ethereum threads and provides delegate interfaces for capturing their output via callback functions.
     This is done via implementing `EthDelegate` and `WebDelegate` abstract classes.
     """
+
+    ##
+    # Initialization
+    ##
 
     def __init__(self, eth_server: str, abi_path: str, pandora: str, node: str, vault: str,
                  ipfs_server: str, ipfs_port: int, data_dir: str, use_hooks: bool = False):
@@ -93,8 +99,11 @@ class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proce
             return False
 
         job_address = self.node.cognitive_job_address()
+        self.logger.info("Initializing cognitive job contract for address %s", job_address)
         if job_address is not None:
-            result = self.init_cognitive_job(job_address)
+            if job_address in self.jobs:
+                raise Exception('Internal inconsistency: cognitive job is already initialized')
+            result = self.__init_cognitive_job(job_address)
 
         result &= self.node.bootstrap() if result else False
 
@@ -108,20 +117,19 @@ class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proce
 
         return True
 
-    def init_cognitive_job(self, job_address: str) -> bool:
-        self.logger.info("Initializing cognitive job contract for address %s", job_address)
-        if job_address in self.jobs:
-            raise Exception('Internal inconsistency: cognitive job is already initialized')
-        return self.__init_cognitive_job(job_address)
-
-    def create_cognitive_job(self, job_address: str):
-        if job_address in self.jobs:
-            return
-        self.logger.info("Initializing cognitive job contract for address %s", job_address)
-        if self.__init_cognitive_job(job_address) is False:
-            self.logger.error("Error initializing cognitive job for address %s", job_address)
+    ##
+    # Private supplementary functions
+    ##
 
     def __init_cognitive_job(self, job_address: str) -> bool:
+        """Supplementary private method used for instantiating `CognitiveJob` contract either on daemon launch
+        (if associated WorkerNode contract already has an assigned job) or upon new cognitive job assignment at
+        runtime
+
+        :param job_address: Address of CognitiveJob contract in Ethereum network
+
+        :returns: Success or failure boolean value"""
+
         try:
             job = CognitiveJob(delegate=self, address=job_address, abi_path=self.abi_path, abi_file='CognitiveJob')
             result = job.init_contract()
@@ -135,17 +143,15 @@ class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proce
         self.jobs[job_address] = job
         return True
 
-    def start_validating(self, node: WorkerNode):
-        self.logger.info("Starting validating data for cognitive job %s...", job_address)
-        processor = self.__init_processor(node)
-        processor.load()
-
-    def start_computing(self, node: WorkerNode):
-        self.logger.info("Starting computing cognitive job %s...", job_address)
-        processor = self.__init_processor(node)
-        processor.compute()
-
     def __init_processor(self, node: WorkerNode) -> Processor:
+        """Supplementrary private method used for instantiating `Processor` class either on new validation or
+        cognition task
+
+        :param node: `WorkerNode` instance (reserved for the future use when pynode will be able to connect
+        multiple WorkerNode contracts)
+
+        :returns: `Processor` instance associated with a given pair or WorkerNode and CognitiveJob contracts"""
+
         job_address = node.cognitive_job_address()
         node_address = node.address
         processor_id = '%s:%s' % (node_address, job_address)
@@ -170,19 +176,54 @@ class Broker (Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proce
         processor.prepare(kernel=job.kernel_address(), dataset=job.dataset_address(), batch=batch)
         return processor
 
+    ##
+    # Delegate methods
+    ##
+
+    # WorkerNodeDelegate
+
+    def create_cognitive_job(self, job_address: str):
+        if job_address in self.jobs:
+            return
+        self.logger.info("Initializing cognitive job contract for address %s", job_address)
+        if self.__init_cognitive_job(job_address) is False:
+            self.logger.error("Error initializing cognitive job for address %s", job_address)
+
+    def start_validating(self, node: WorkerNode):
+        self.logger.info("Starting validating data")
+        try:
+            processor = self.__init_processor(node)
+        except:
+            self.processor_load_failure(None)
+            return
+        processor.load()
+
+    def start_computing(self, node: WorkerNode):
+        self.logger.info("Starting computing cognitive job")
+        try:
+            processor = self.__init_processor(node)
+        except:
+            self.processor_computing_failure(None)
+            return
+        processor.compute()
+
+    # CognitiveJobDelegate
+
     def terminate_job(self, job: CognitiveJob):
         # TODO: Implement
         pass
 
+    # ProcessorDelegate
+
     def processor_load_complete(self, processor_id: str):
         self.node.transact_accept_valid_data()
 
-    def processor_load_failure(self, processor_id: str):
+    def processor_load_failure(self, processor_id: Union[str, None]):
         self.node.transact_report_invalid_data()
 
     def processor_computing_complete(self, processor_id: str, results_file: str):
         self.node.transact_provide_results(results_file)
 
-    def processor_computing_failure(self, processor_id: str):
-        # TODO: Implement
-        pass
+    def processor_computing_failure(self, processor_id: Union[str, None]):
+        self.logger.critical("Can't complete computing, exiting in order to reboot and try to repeat the work")
+        sys.exit(1)

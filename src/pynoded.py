@@ -10,8 +10,16 @@ logging.basicConfig(level=logging.INFO,
                     format='(%(threadName)-10s) %(levelname)s: %(message)s',
                     )
 
+HELP = """pynoded: Python version of Pandora Boxchain worker node daemon made for Pyrrha release
+Version 0.9.0
+
+Usage:
+$ pynoded -c <config_file> -p <password>
+"""
 
 def run(config_file: str, password: str):
+    """Reads config file, initializes configuration and creates Broker object that runs in a separate thread"""
+
     logging.info('Starting broker with config')
 
     logging.info("Loading config file '%s'", config_file)
@@ -51,18 +59,19 @@ def run(config_file: str, password: str):
 
 
 def main(argv):
+    """Parses command-line options and evokes `run`"""
+
     conf_file = 'pynode.ini'
     password = None
-    helpstring = 'pynoded -c <config_file> -p <password>'
 
     try:
         opts, args = getopt.getopt(argv[1:], "hc:p:", ["config=", "password="])
     except getopt.GetoptError:
-        print(helpstring)
+        print(HELP)
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print(helpstring)
+            print(HELP)
             sys.exit()
         elif opt in ("-c", "--config"):
             conf_file = arg

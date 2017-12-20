@@ -57,15 +57,17 @@ class Processor(Thread):
         self.delegate = delegate
 
         # Initializing IPFS
-        self.ipfs = IPFSConnector(server=ipfs_server, port=ipfs_port, data_dir=data_dir)
+        self.__ipfs_api = IPFSConnector(server=ipfs_server, port=ipfs_port, data_dir=data_dir)
 
     def prepare(self, kernel: str, dataset: str, batch: int) -> bool:
         try:
-            self.kernel = Kernel(kernel, self.abi_path, 'Kernel', self.ipfs)
+            self.kernel = Kernel(kernel, self.abi_path, 'Kernel', self.__ipfs_api)
             result = self.kernel.init_contract()
-            self.dataset = Dataset(batch, dataset, self.abi_path, 'Dataset')
+            self.dataset = Dataset(batch, dataset, self.abi_path, 'Dataset', self.__ipfs_api)
             result &= self.dataset.init_contract()
-        except:
+        except Exception as ex:
+            self.logger.error("Error instantiating cognitive job entities: %s", type(ex))
+            self.logger.error(ex.args)
             return False
         return result
 
@@ -73,20 +75,47 @@ class Processor(Thread):
         # TODO: Implement
         return 0
 
+    def __load(self) -> bool:
+        try:
+            self.kernel.read_model()
+            self.dataset.read_dataset()
+        except Exception as ex:
+            self.logger.error("Error reading entities: %s", type(ex))
+            self.logger.error(ex.args)
+            return False
+        return True
+
     def load(self):
-        self.kernel.read_model()
-        self.dataset.read_dataset()
-        self.delegate.processor_load_complete(self.id)
+        if self.__load() is False:
+            self.delegate.processor_load_failure(self.id)
+        else:
+            self.delegate.processor_load_complete(self.id)
 
-    def compute(self, model, dataset):
-        self.load()
+    def compute(self):
+        if self.__load() is False:
+            self.delegate.processor_computing_failure(self.id)
+            return
 
-        self.logger.info('Computing...')
-        out = model.predict(dataset)
+        try:
+            out = self.kernel.inference(self.dataset)
+        except Exception as ex:
+            self.logger.error("Error performing neural network inference: %s", type(ex))
+            self.logger.error(ex.args)
+            self.delegate.processor_computing_failure(self.id)
+            return
 
         self.logger.info('Computing completed successfully, saving results to a file')
         # TODO: Replace with unique string
         self.results_file = 'out.hdf5'
-        h5w = h5py.File(self.results_file, 'w')
-        h5w.create_dataset('dataset', data=out)
+
+        try:
+            h5w = h5py.File(self.results_file, 'w')
+            h5w.create_dataset('dataset', data=out)
+            self.__ipfs_api.upload_file(self.results_file)
+        except Exception as ex:
+            self.logger.error("Error saving results of cognitive work: %s", type(ex))
+            self.logger.error(ex.args)
+            self.delegate.processor_computing_failure(self.id)
+            return
+
         self.delegate.processor_computing_complete(self.id, self.results_file)

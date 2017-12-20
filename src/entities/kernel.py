@@ -1,6 +1,7 @@
 import os
 import keras
 from .entity import Entity
+from .dataset import Dataset
 
 
 class Kernel(Entity):
@@ -47,3 +48,7 @@ class Kernel(Entity):
         self.model.load_weights(self.weights_address)
 
         return self.model
+
+    def inference(self, dataset: Dataset):
+        self.logger.info('Runnning model inference...')
+        return self.model.predict(dataset.dataset)
