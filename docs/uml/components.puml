@@ -39,19 +39,18 @@ package Thread5 {
     () IPFS
     [Processor]
     [Keras]
+    [Kernel]
+    [Dataset]
     [Processor] --> [Keras]
-    [Processor] --> IPFS
-
-    note right of [Processor]
-        Has own
-        interanl state
-    end note
+    [Processor] --> [Kernel]
+    [Processor] --> [Dataset]
+    [Kernel] --> IPFS
+    [Dataset] --> IPFS
 }
 
 [Broker] <.right. [WebAPI]
-[Broker] <.right.> [WorkerNode]
-[Broker] .right.> [CognitiveJob]
-[WorkerNode] <..> [CognitiveJob]
-[CognitiveJob] <.right.> [Processor]
+[Broker] <.up.> [WorkerNode]
+[Broker] <..> [CognitiveJob]
+[Broker] <..> [Processor]
 
 @enduml

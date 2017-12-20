@@ -1,8 +1,14 @@
 @startuml
 
-package connectors {
-    class EthConnected
-    class IPFSConnected
+package eth {
+    class EthConnector
+    class StatefulContract
+
+    EthConnector <|-- StatefulContract
+}
+
+package ipfs {
+    class IPFSConnector
 }
 
 package stdlib #lightgrey {
@@ -12,47 +18,53 @@ package stdlib #lightgrey {
 package patterns {
     class StateMachine
     class Singleton
+
+    StateMachine <|-left- StatefulContract
 }
 
 package node {
+    class NodeActions
     class WorkerNode
-    enum NodeStates {
-    }
-    WorkerNode -- NodeStates
-    EthConnected <|-- WorkerNode
-    StateMachine <|-- WorkerNode
-    Thread <|-- WorkerNode
+
+    StatefulContract <|-- NodeActions
+    NodeActions <|-- WorkerNode
 }
 
 package job {
+    class JobGetters
     class CognitiveJob
-    enum JobStates {
-    }
-    CognitiveJob -- JobStates
-    EthConnected <|-- CognitiveJob
-    StateMachine <|-- CognitiveJob
-    Thread <|-- CognitiveJob
+
+    StatefulContract <|-- JobGetters
+    JobGetters <|-- CognitiveJob
+}
+
+package entities {
+    class Entity
+    class Kernel
+    class Dataset
+    EthConnector <|-- Entity
+    Entity <|-- Kernel
+    Entity <|-- Dataset
+    IPFSConnector o-down- Entity
 }
 
 package processor {
     class Processor
-    enum ProcessorStates {
-    }
-    Processor -- ProcessorStates
-    Thread <|-- Processor
-    IPFSConnected <|-- Processor
-    StateMachine <|-- Processor
+    Thread <|-up- Processor
+    Kernel o-- Processor
+    Dataset o-- Processor
 }
 
 package webapi {
     class WebAPIServer
-    Thread <|-- WebAPIServer
+    Thread <|-up- WebAPIServer
 }
 
 class Broker
 Singleton <|-- Broker
 Broker *--o WorkerNode
 Broker *--o WebAPIServer
-CognitiveJob *--o WorkerNode
+Broker *--o "∞" CognitiveJob
+Broker *--o "∞" Processor
 
 @enduml
