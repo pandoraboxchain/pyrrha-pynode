@@ -3,15 +3,12 @@ import logging
 import time
 from threading import Thread
 from os.path import exists
-from scrypt import decrypt
 from typing import Union
 
 from patterns.singleton import *
-from eth.eth_connector import EthConnector
 from node.worker_node import *
 from job.cognitive_job import *
 from processor.processor import *
-from webapi.webapi import *
 
 
 class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, ProcessorDelegate):
@@ -26,7 +23,7 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
     ##
 
     def __init__(self, eth_server: str, abi_path: str, pandora: str, node: str, vault: str,
-                 ipfs_server: str, ipfs_port: int, data_dir: str, use_hooks: bool = False):
+                 ipfs_server: str, ipfs_port: int, data_dir: str, account_private_key: str, use_hooks: bool = False):
         """
         Instantiates Broker object and its members, but does not initiates them (network interfaces are not created/
         bind etc). Broker follows two-step initialization pattern (`Broker(...)` followed by `broker.run` call.
@@ -49,18 +46,20 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         self.ipfs_server = ipfs_server
         self.ipfs_port = ipfs_port
         self.data_dir = data_dir
+        self.pri_key = account_private_key
 
         # Instantiating services objects
         EthConnector.server = self.eth_server
         self.pandora = EthConnector(address=pandora,
                                     abi_path=self.abi_path, abi_file='PandoraHooks' if use_hooks else 'Pandora')
         self.node = WorkerNode(delegate=self, address=node, abi_path=self.abi_path, abi_file='WorkerNode')
+
         self.jobs = {}
         self.processors = {}
 
         # self.api = WebAPI(config=self.config.webapi, delegate=self)
 
-    def connect(self, password: str) -> bool:
+    def connect(self, account_private_key: str) -> bool:
         """
         Starts all necessary interfaces (WebAPI, Ethereum and its underlying interfaces). Fails if any of them failed.
 
@@ -76,18 +75,13 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         # Since all necessary network environments are available for now we can run the services as a separate threads
         # self.api.run()
 
-        self.logger.info("Opening vault file %s with private key", self.vault)
-        if not exists(self.vault):
-            self.logger.error("Ethereum account vault file %s is not present, exiting", self.vault)
-            return False
-
-        with open(self.vault, 'rb') as file:
-            cypher = file.read()
-            pri_key = decrypt(cypher, password)
-        self.logger.info("Private key successfully read")
+        self.logger.info("Obtaining account private key")
+        if self.pri_key is None:
+            self.pri_key = account_private_key
+            self.logger.info("Account private key obtained successful : " + self.pri_key)
 
         try:
-            result = EthConnector.connect(pri_key)
+            result = EthConnector.connect(self.pri_key)
             result &= self.pandora.init_contract() if result else False
             result &= self.node.init_contract() if result else False
         except Exception as ex:

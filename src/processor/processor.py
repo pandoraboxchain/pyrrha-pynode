@@ -1,10 +1,9 @@
-import h5py
 import logging
 from abc import *
 from threading import Thread
 from ipfs.ipfs_connector import *
-from entities.kernel import Kernel
-from entities.dataset import Dataset
+from entities.kernel import *
+from entities.dataset import *
 
 
 class IPFSError (Exception):

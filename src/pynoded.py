@@ -14,10 +14,11 @@ HELP = """pynoded: Python version of Pandora Boxchain worker node daemon made fo
 Version 0.9.0
 
 Usage:
-$ pynoded -c <config_file> -p <password>
+$ pynoded -c <config_file> -a <account_private_key>
 """
 
-def run(config_file: str, password: str):
+
+def run(config_file: str, account_private_key: str):
     """Reads config file, initializes configuration and creates Broker object that runs in a separate thread"""
 
     logging.info('Starting broker with config')
@@ -38,20 +39,27 @@ def run(config_file: str, password: str):
         eth_server = eth_section[eth_use]
         ipfs_section = config['IPFS']
         ipfs_use = config['IPFS.%s' % ipfs_section['use']]
+
+        if config.has_option('Contracts', 'account_private_key'):
+            account_private_key = config['Contracts']['account_private_key']
+        else:
+            account_private_key = None
+
         broker = Broker(eth_server=eth_server, abi_path=eth_contracts['abi_path'],
                         pandora=eth_contracts['pandora'], node=eth_contracts['worker_node'],
                         vault=config['Account']['vault'], data_dir=ipfs_section['store_in'],
                         ipfs_server=ipfs_use['server'], ipfs_port=int(ipfs_use['port']),
-                        use_hooks=eth_contracts.getboolean('hooks'))
+                        use_hooks=eth_contracts.getboolean('hooks'),
+                        account_private_key=account_private_key)
     except Exception as ex:
         logging.error("Error reading config: %s, exiting", type(ex))
         logging.error(ex.args)
         return
 
-    if password is None:
-        password = getpass('Please provide password for unlocking private key: ')
+    if account_private_key is None:
+        account_private_key = getpass('Please provide account private key: ')
 
-    if broker.connect(password) is False:
+    if broker.connect(account_private_key) is False:
         return
 
     # Remove the following line in order to put the app into a daemon mode (running on the background)
@@ -61,11 +69,11 @@ def run(config_file: str, password: str):
 def main(argv):
     """Parses command-line options and evokes `run`"""
 
-    conf_file = 'pynode.ini'
-    password = None
+    conf_file = '../pynode.ini'
+    account_private_key = None
 
     try:
-        opts, args = getopt.getopt(argv[1:], "hc:p:", ["config=", "password="])
+        opts, args = getopt.getopt(argv[1:], "hc:p:", ["config=", "account="])
     except getopt.GetoptError:
         print(HELP)
         sys.exit(2)
@@ -75,10 +83,10 @@ def main(argv):
             sys.exit()
         elif opt in ("-c", "--config"):
             conf_file = arg
-        elif opt in ("-p", "--password"):
+        elif opt in ("-a", "--account"):
             password = arg
 
-    run(config_file=conf_file, password=password)
+    run(config_file=conf_file, account_private_key=account_private_key)
 
 
 if __name__ == "__main__":
