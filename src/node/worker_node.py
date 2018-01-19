@@ -90,6 +90,9 @@ class WorkerNode(NodeActions):
         }
         super().__init__(table=table, *args, **kwargs)
 
+    def join(self):
+        self.event_filter.join()
+
     def on_enter_state_uninitialized(self, from_state: int):
         pass
 
@@ -128,7 +131,7 @@ class WorkerNode(NodeActions):
         pass
 
     def on_enter_state_validating_data(self, from_state: int):
-        self.delegate.start_validating()
+        self.delegate.start_validating(self)
 
     def on_exit_state_validating_data(self, to_state: int):
         pass

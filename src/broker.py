@@ -114,6 +114,7 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         self.logger.info("Broker started successfully")
 
         super().start()
+        self.node.join()
 
         return True
 
