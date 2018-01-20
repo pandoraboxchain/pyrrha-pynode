@@ -58,12 +58,13 @@ class Processor(Thread):
 
         # Initializing IPFS
         self.__ipfs_api = IPFSConnector(server=ipfs_server, port=ipfs_port, data_dir=data_dir)
+        self.__ipfs_api.connect()
 
     def prepare(self, kernel: str, dataset: str, batch: int) -> bool:
         try:
-            self.kernel = Kernel(kernel, self.abi_path, 'Kernel', self.__ipfs_api)
+            self.kernel = Kernel(address=kernel, abi_path=self.abi_path, abi_file='Kernel', ipfs_api=self.__ipfs_api)
             result = self.kernel.init_contract()
-            self.dataset = Dataset(batch, dataset, self.abi_path, 'Dataset', self.__ipfs_api)
+            self.dataset = Dataset(batch_no=batch, address=dataset, abi_path=self.abi_path, abi_file='Dataset', ipfs_api=self.__ipfs_api)
             result &= self.dataset.init_contract()
         except Exception as ex:
             self.logger.error("Error instantiating cognitive job entities: %s", type(ex))

@@ -13,5 +13,5 @@ class JobGetters(StatefulContract):
         workers = []
         workers_count = self.contract.call().activeWorkersCount()
         for w in range(0, workers_count):
-            workers.append(self.contract.call().activeWorkers(w))
+            workers.append(self.contract.call().activeWorkers(w).lower())
         return workers

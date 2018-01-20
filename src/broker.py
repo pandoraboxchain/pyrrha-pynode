@@ -154,18 +154,18 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         :returns: `Processor` instance associated with a given pair or WorkerNode and CognitiveJob contracts"""
 
         job_address = node.cognitive_job_address()
-        node_address = node.address
+        node_address = node.address.lower()
         processor_id = '%s:%s' % (node_address, job_address)
 
         job = self.jobs[job_address]
         workers = job.workers()
         batch = None
         for idx, w in enumerate(workers):
-            if self.node.address is w:
+            if node_address == w:
                 batch = idx
                 break
         if batch is None:
-            raise Exception("Can't determine worker this node batch number")
+            raise Exception("Can't determine this node batch number")
 
         if processor_id in self.processors:
             return self.processors[processor_id]
@@ -194,7 +194,9 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         self.logger.info("Starting validating data")
         try:
             processor = self.__init_processor(node)
-        except:
+        except Exception as ex:
+            self.logger.error("Error during processor initialization: %s", type(ex))
+            self.logger.error(ex.args)
             self.processor_load_failure(None)
             return
         processor.load()
@@ -203,7 +205,9 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         self.logger.info("Starting computing cognitive job")
         try:
             processor = self.__init_processor(node)
-        except:
+        except Exception as ex:
+            self.logger.error("Error during processor initialization: %s", type(ex))
+            self.logger.error(ex.args)
             self.processor_computing_failure(None)
             return
         processor.compute()
