@@ -1,17 +1,14 @@
 import sys
 import logging
-import time
 from threading import Thread
-from os.path import exists
-from scrypt import decrypt
 from typing import Union
 
-from patterns.singleton import *
+from job.cognitive_job import CognitiveJobDelegate, CognitiveJob
+from node.worker_node import WorkerNodeDelegate, WorkerNode
+from patterns.singleton import Singleton
+from processor.processor import ProcessorDelegate
 from eth.eth_connector import EthConnector
-from node.worker_node import *
-from job.cognitive_job import *
-from processor.processor import *
-from webapi.webapi import *
+from processor.processor import Processor
 
 
 class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, ProcessorDelegate):
