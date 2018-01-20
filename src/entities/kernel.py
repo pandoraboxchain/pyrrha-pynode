@@ -18,19 +18,21 @@ class Kernel(Entity):
             return False
 
         try:
-            self.model_address = self.__info['model']
-            self.weights_address = self.__info['weights']
-        except:
-            self.logger.error("Wrong Kernel data file structure")
+            self.model_address = self.json_info['model']
+            self.weights_address = self.json_info['weights']
+        except Exception as ex:
+            self.logger.error("Wrong Kernel data file structure:")
+            self.logger.error(ex.args)
             return False
 
         try:
             self.logger.info("Downloading model file %s", self.model_address)
-            self.__ipfs_api.download_file(self.model_address)
+            self.ipfs_api.download_file(self.model_address)
             self.logger.info("Downloading weights file %s", self.weights_address)
-            self.__ipfs_api.download_file(self.weights_address)
-        except:
-            self.logger.error("Can't download kernel files from IPFS")
+            self.ipfs_api.download_file(self.weights_address)
+        except Exception as ex:
+            self.logger.error("Can't download kernel files from IPFS: %s", type(ex))
+            self.logger.error(ex.args)
             return False
 
         return True
@@ -40,7 +42,7 @@ class Kernel(Entity):
             return self.model
 
         self.logger.info('Loading kernel architecture...')
-        os.chdir(self.__ipfs_api.data_dir)
+        os.chdir(self.ipfs_api.data_dir)
         with open(self.model_address, "r") as json_file:
             json_model = json_file.read()
 

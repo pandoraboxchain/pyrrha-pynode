@@ -18,17 +18,19 @@ class Dataset(Entity):
             return False
 
         try:
-            batches = self.__info['batches']
+            batches = self.json_info['batches']
             self.data_address = batches[self.batch_no]
-        except:
+        except Exception as ex:
             self.logger.error("Wrong Dataset data file structure")
+            self.logger.error(ex.args)
             return False
 
         try:
             self.logger.info("Downloading data file %s", self.data_address)
-            self.__ipfs_api.download_file(self.data_address)
-        except:
-            self.logger.error("Can't download data file from IPFS")
+            self.ipfs_api.download_file(self.data_address)
+        except Exception as ex:
+            self.logger.error("Can't download data file from IPFS: %s", type(ex))
+            self.logger.error(ex.args)
             return False
 
         return True
@@ -38,7 +40,7 @@ class Dataset(Entity):
             return self.dataset
 
         self.logger.info('Loading dataset...')
-        os.chdir(self.__ipfs_api.data_dir)
+        os.chdir(self.ipfs_api.data_dir)
         h5f = h5py.File(self.data_address, 'r')
         # FIX: Magic number for dataset name inside HDF5 file!
         h5ds = h5f['dataset']
