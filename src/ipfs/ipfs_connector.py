@@ -1,6 +1,7 @@
 import ipfsapi
 import os
 
+
 class IPFSConnector:
 
     def __init__(self, server: str, port: int, data_dir: str):

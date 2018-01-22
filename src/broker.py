@@ -1,17 +1,9 @@
 import sys
-import logging
-import time
-from threading import Thread
-from os.path import exists
-from scrypt import decrypt
-from typing import Union
 
 from patterns.singleton import *
-from eth.eth_connector import EthConnector
 from node.worker_node import *
 from job.cognitive_job import *
 from processor.processor import *
-from webapi.webapi import *
 
 
 class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, ProcessorDelegate):
@@ -60,7 +52,7 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
 
         # self.api = WebAPI(config=self.config.webapi, delegate=self)
 
-    def connect(self, password: str) -> bool:
+    def connect(self) -> bool:
         """
         Starts all necessary interfaces (WebAPI, Ethereum and its underlying interfaces). Fails if any of them failed.
 
@@ -76,18 +68,8 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         # Since all necessary network environments are available for now we can run the services as a separate threads
         # self.api.run()
 
-        self.logger.info("Opening vault file %s with private key", self.vault)
-        if not exists(self.vault):
-            self.logger.error("Ethereum account vault file %s is not present, exiting", self.vault)
-            return False
-
-        with open(self.vault, 'rb') as file:
-            cypher = file.read()
-            pri_key = decrypt(cypher, password)
-        self.logger.info("Private key successfully read")
-
         try:
-            result = EthConnector.connect(pri_key)
+            result = EthConnector.connect()
             result &= self.pandora.init_contract() if result else False
             result &= self.node.init_contract() if result else False
         except Exception as ex:
@@ -99,14 +81,17 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
             return False
 
         job_address = self.node.cognitive_job_address()
-        self.logger.info("Initializing cognitive job contract for address %s", job_address)
-        if job_address is not None:
-            if job_address in self.jobs:
-                raise Exception('Internal inconsistency: cognitive job is already initialized')
-            result = self.__init_cognitive_job(job_address)
+        # validate job address and if it`s 0x0 let start node without job
+        if job_address == '0x0000000000000000000000000000000000000000':
+            self.logger.info("Job address is 0x0 : no work specified")
+        else:
+            self.logger.info("Initializing cognitive job contract for address %s", job_address)
+            if job_address is not None:
+                if job_address in self.jobs:
+                    raise Exception('Internal inconsistency: cognitive job is already initialized')
+                result = self.__init_cognitive_job(job_address)
 
         result &= self.node.bootstrap() if result else False
-
         if result is not True:
             self.logger.error("Unable to start broker, exiting")
             return False

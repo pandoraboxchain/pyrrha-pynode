@@ -1,7 +1,6 @@
 import sys
 import logging
 import getopt
-from getpass import getpass
 from configparser import ConfigParser
 
 from broker import Broker
@@ -17,7 +16,8 @@ Usage:
 $ pynoded -c <config_file> -p <password>
 """
 
-def run(config_file: str, password: str):
+
+def run(config_file: str):
     """Reads config file, initializes configuration and creates Broker object that runs in a separate thread"""
 
     logging.info('Starting broker with config')
@@ -48,10 +48,7 @@ def run(config_file: str, password: str):
         logging.error(ex.args)
         return
 
-    if password is None:
-        password = getpass('Please provide password for unlocking private key: ')
-
-    if broker.connect(password) is False:
+    if broker.connect() is False:
         return
 
     # Remove the following line in order to put the app into a daemon mode (running on the background)
@@ -62,7 +59,6 @@ def main(argv):
     """Parses command-line options and evokes `run`"""
 
     conf_file = 'pynode.ini'
-    password = None
 
     try:
         opts, args = getopt.getopt(argv[1:], "hc:p:", ["config=", "password="])
@@ -75,10 +71,8 @@ def main(argv):
             sys.exit()
         elif opt in ("-c", "--config"):
             conf_file = arg
-        elif opt in ("-p", "--password"):
-            password = arg
 
-    run(config_file=conf_file, password=password)
+    run(config_file=conf_file)
 
 
 if __name__ == "__main__":

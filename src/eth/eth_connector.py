@@ -60,7 +60,7 @@ class EthConnector:
         self.owner = None
 
     @staticmethod
-    def connect(private_key: str) -> bool:
+    def connect() -> bool:
         if EthConnector.web3 is not None:
             return True
 
