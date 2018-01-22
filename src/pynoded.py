@@ -13,7 +13,7 @@ HELP = """pynoded: Python version of Pandora Boxchain worker node daemon made fo
 Version 0.9.0
 
 Usage:
-$ pynoded -c <config_file> -p <password>
+$ pynoded -c <config_file>
 """
 
 
@@ -59,9 +59,10 @@ def main(argv):
     """Parses command-line options and evokes `run`"""
 
     conf_file = 'pynode.ini'
+    password = None
 
     try:
-        opts, args = getopt.getopt(argv[1:], "hc:p:", ["config=", "password="])
+        opts, args = getopt.getopt(argv[1:], "hc:p:", ["config="])
     except getopt.GetoptError:
         print(HELP)
         sys.exit(2)
