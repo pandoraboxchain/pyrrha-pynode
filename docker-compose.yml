@@ -1,0 +1,19 @@
+version: "2"
+services:
+
+  pyrrha_pynode:
+    container_name: "pyrrha_pynode"
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    ports:
+      - "7545:7545"
+      - "8545:8545"
+      - "5001:5001"
+    networks:
+      main:
+        aliases:
+          - pyrrha_pynode
+
+networks:
+  main:

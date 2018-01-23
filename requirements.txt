@@ -1,10 +1,12 @@
+pip==9.0.1
+setuptools==38.4.0
 ipfsapi==0.4.2
 typing==3.6.2
 h5py==2.7.1
 web3==3.16.4
 numpy==1.13.3
 keras==2.0.8
-https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-0.12.0-py3-none-any.whl
+tensorflow==1.4.1
 
 #https://www.lfd.uci.edu/~gohlke/pythonlibs
 #This page provides 32- and 64-bit Windows binaries of many scientific open-source extension packages for the official

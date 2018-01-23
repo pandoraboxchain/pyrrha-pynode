@@ -58,7 +58,7 @@ def run(config_file: str):
 def main(argv):
     """Parses command-line options and evokes `run`"""
 
-    conf_file = 'pynode.ini'
+    conf_file = '../pynode.ini'
     password = None
 
     try:

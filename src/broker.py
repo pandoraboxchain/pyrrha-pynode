@@ -3,7 +3,6 @@ import logging
 import time
 from threading import Thread
 from os.path import exists
-from scrypt import decrypt
 from typing import Union
 
 from patterns.singleton import *
