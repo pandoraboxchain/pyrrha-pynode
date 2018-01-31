@@ -5,15 +5,15 @@ services:
     container_name: "pyrrha_pynode"
     build:
       context: .
-      dockerfile: ./Dockerfile
-    ports:
-      - "7545:7545"
-      - "8545:8545"
-      - "5001:5001"
-    networks:
-      main:
-        aliases:
-          - pyrrha_pynode
+      dockerfile: ./Dockerfile  
+    environment:
+      - ETHEREUM_HOST=http://localhost:7545
+      - ETHEREUM_LOCAL_HOST=http://localhost:8545
+      - IPFS_INFURA_HOST=https://ipfs.infura.io
+      - IPFS_LOCALHOST=localhost
+      - IPFS_PANDORA_HOST=http://52.232.79.62
+      - CONTRACT_PANDORA=0x2c2b9c9a4a25e24b174f26114e8926a9f2128fe4
+      - CONTRACT_WORKER_NODE=0x5677db552d5fd9911a5560cb0bd40be90a70eff2
 
-networks:
-  main:
+    network_mode: "host"   
+    

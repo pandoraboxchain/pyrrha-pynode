@@ -1,6 +1,7 @@
 import sys
 import logging
 import getopt
+import os
 from configparser import ConfigParser
 
 from broker import Broker
@@ -16,6 +17,27 @@ Usage:
 $ pynoded -c <config_file>
 """
 
+def use_env_cfg():
+    config_tmp = open('../pynode.tmp.ini', "r")
+    config_file = open('../pynode.ini', "w")
+    while 1:
+        line = config_tmp.readline()
+        if not line: break
+        if os.environ['ETHEREUM_HOST']: line = line.replace('ETHEREUM_HOST', os.environ['ETHEREUM_HOST'])
+        if os.environ['ETHEREUM_LOCAL_HOST']: line = line.replace('ETHEREUM_LOCAL_HOST', os.environ['ETHEREUM_LOCAL_HOST'])
+        if os.environ['IPFS_INFURA_HOST']: line = line.replace('IPFS_INFURA_HOST', os.environ['IPFS_INFURA_HOST'])
+        if os.environ['IPFS_PANDORA_HOST']: line = line.replace('IPFS_PANDORA_HOST', os.environ['IPFS_PANDORA_HOST'])
+        if os.environ['IPFS_LOCALHOST']: line = line.replace('IPFS_LOCALHOST', os.environ['IPFS_LOCALHOST'])
+        if os.environ['CONTRACT_PANDORA']: line = line.replace('CONTRACT_PANDORA', os.environ['CONTRACT_PANDORA'])
+        if os.environ['CONTRACT_WORKER_NODE']: line = line.replace('CONTRACT_WORKER_NODE', os.environ['CONTRACT_WORKER_NODE'])
+        config_file.write(line)
+    config_file.close()
+    config_tmp.close()
+    print('=======================================')
+    print(open('../pynode.ini').read())
+    print('=======================================')
+
+use_env_cfg()        
 
 def run(config_file: str):
     """Reads config file, initializes configuration and creates Broker object that runs in a separate thread"""
@@ -57,7 +79,7 @@ def run(config_file: str):
 
 def main(argv):
     """Parses command-line options and evokes `run`"""
-
+    
     conf_file = '../pynode.ini'
     password = None
 
