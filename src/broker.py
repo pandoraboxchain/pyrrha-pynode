@@ -1,7 +1,9 @@
 import sys
 import logging
+from os.path import exists
 from threading import Thread
 from typing import Union
+from scrypt import decrypt
 
 from job.cognitive_job import CognitiveJobDelegate, CognitiveJob
 from node.worker_node import WorkerNodeDelegate, WorkerNode
