@@ -1,16 +1,11 @@
 import sys
-import logging
-import time
-from threading import Thread
-from os.path import exists
-from typing import Union
 
+from manager import Manager
 from patterns.singleton import *
-from eth.eth_connector import EthConnector
 from node.worker_node import *
 from job.cognitive_job import *
 from processor.processor import *
-from webapi.webapi import *
+from patterns.exceptions import *
 
 
 class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, ProcessorDelegate):
@@ -24,8 +19,9 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
     # Initialization
     ##
 
-    def __init__(self, eth_server: str, abi_path: str, pandora: str, node: str, vault: str,
-                 ipfs_server: str, ipfs_port: int, data_dir: str, use_hooks: bool = False):
+    def __init__(self, eth_server: str, abi_path: str, pandora: str,
+                 node: str, ipfs_server: str, ipfs_port: int,
+                 data_dir: str, use_hooks: bool = False):
         """
         Instantiates Broker object and its members, but does not initiates them (network interfaces are not created/
         bind etc). Broker follows two-step initialization pattern (`Broker(...)` followed by `broker.run` call.
@@ -35,16 +31,16 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         """
 
         # Calling singleton init preventing repeated class instantiation
-        Singleton.__init__(self)
+        Broker.get_instance()
         Thread.__init__(self, daemon=True)
 
         # Initializing logger object
         self.logger = logging.getLogger("broker")
+        self.mode = Manager.get_instance().launch_mode
 
         # Saving config
         self.eth_server = eth_server
         self.abi_path = abi_path
-        self.vault = vault
         self.ipfs_server = ipfs_server
         self.ipfs_port = ipfs_port
         self.data_dir = data_dir
@@ -52,8 +48,12 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         # Instantiating services objects
         EthConnector.server = self.eth_server
         self.pandora = EthConnector(address=pandora,
-                                    abi_path=self.abi_path, abi_file='PandoraHooks' if use_hooks else 'Pandora')
-        self.node = WorkerNode(delegate=self, address=node, abi_path=self.abi_path, abi_file='WorkerNode')
+                                    abi_path=self.abi_path,
+                                    abi_file='PandoraHooks' if use_hooks else 'Pandora')
+        self.node = WorkerNode(delegate=self,
+                               address=node,
+                               abi_path=self.abi_path,
+                               abi_file='WorkerNode')
         self.jobs = {}
         self.processors = {}
 
@@ -82,15 +82,18 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         except Exception as ex:
             self.logger.error("Exception initializing contracts: %s", type(ex))
             self.logger.error(ex.args)
+            if self.mode == 1:
+                raise
             return False
         if result is not True:
             self.logger.error("Unable to start broker, exiting")
             return False
 
         job_address = self.node.cognitive_job_address()
-        # validate job address and if it`s 0x0 let start node without job
         if job_address == '0x0000000000000000000000000000000000000000':
             self.logger.info("Job address is 0x0 : no work specified")
+            if self.mode == 1:
+                raise EmptyCognitiveJobInWorkerContract("Job address is 0x0: no work specified")
         else:
             self.logger.info("Initializing cognitive job contract for address %s", job_address)
             if job_address is not None:
@@ -106,8 +109,9 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         self.logger.info("Broker started successfully")
 
         super().start()
-        self.node.join()
-
+        # for test cases need to return running state
+        if self.mode == 0:
+            self.node.join()
         return True
 
     ##
@@ -124,9 +128,12 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         :returns: Success or failure boolean value"""
 
         try:
-            job = CognitiveJob(delegate=self, address=job_address, abi_path=self.abi_path, abi_file='CognitiveJob')
+            job = CognitiveJob(delegate=self,
+                               address=job_address,
+                               abi_path=self.abi_path,
+                               abi_file='CognitiveJob')
             result = job.init_contract()
-            result &= job.bootstrap() if result else False
+            result &= job.bootstrap() if result else False  # subscribe on filter events
         except Exception as ex:
             self.logger.error("Exception initializing cognitive job contract: %s", type(ex))
             self.logger.error(ex.args)
@@ -162,6 +169,7 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         if processor_id in self.processors:
             return self.processors[processor_id]
 
+        # prepare processor for calculating data
         processor = Processor(id=processor_id, ipfs_server=self.ipfs_server, ipfs_port=self.ipfs_port,
                               abi_path=self.abi_path, data_dir=self.data_dir, delegate=self)
         self.processors[processor_id] = processor

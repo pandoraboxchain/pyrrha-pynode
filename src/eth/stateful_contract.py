@@ -24,7 +24,6 @@ class StatefulContract(EthConnector, StateMachine):
         self.logger.info("Binding state changing events")
         try:
             self.bind_event('StateChanged', self.__on_state_changed)
-            # self.event_filter.join()
         except Exception as ex:
             self.logger.error("Error binging events: %s", type(ex))
             self.logger.error(ex.args)

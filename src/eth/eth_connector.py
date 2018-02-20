@@ -1,5 +1,7 @@
 import json
 import logging
+
+from manager import Manager
 from typing import Callable
 from patterns.decorators import *
 from patterns.exceptions import *
@@ -44,10 +46,12 @@ class EthConnector:
     web3 = None
     account = None
     server = None
+    mode = None
 
     def __init__(self, address: str, abi_path: str, abi_file: str):
         # Initializing logger object
         self.logger = logging.getLogger("EthConnector")
+        self.mode = Manager.get_instance().launch_mode
 
         # Saving config
         self.address = address
@@ -61,7 +65,8 @@ class EthConnector:
 
     @staticmethod
     def connect() -> bool:
-        if EthConnector.web3 is not None:
+        mode = Manager.get_instance().launch_mode
+        if EthConnector.web3 is not None and not mode == 1:
             return True
 
         logging.info('Connecting Ethereum node on %s...', EthConnector.server)
@@ -71,19 +76,14 @@ class EthConnector:
         except Exception as ex:
             logging.error('Error connecting Ethereum node: %s', type(ex))
             logging.error(ex.args)
+            if mode == 1:
+                raise EthConnectionException('Error connecting Ethereum node', ex)
             return False
 
         if info is not False:
             logging.error('Ethereum node is not in synch')
-            return False
-
-        try:
-            pass
-            # EthConnector.account = EthConnector.web3.eth.account.privateKeyToAccount(private_key)
-        except Exception as ex:
-            logging.error('Error initializing Ethereum account: %s', type(ex))
-            logging.error(ex.args)
-            EthConnector.web3 = None
+            if mode == 1:
+                raise EthIsNotInSyncException('Ethereum node is not in synch', info)
             return False
 
         logging.info('Ethereum node connected successfully')
@@ -92,7 +92,7 @@ class EthConnector:
     @run_once
     def init_contract(self) -> bool:
         if self.web3 is None:
-            raise NotInitialized()
+            raise NotInitialized("Web 3 is not initialized, unable to connect")
 
         self.contract = self.contract_at(self.address, self.abi_file)
         if self.contract is False:
@@ -105,6 +105,8 @@ class EthConnector:
         except Exception as ex:
             self.logger.error('Wrong contract address or ABI, got exception %s', type(ex))
             self.logger.error(ex.args)
+            if self.mode == 1:
+                raise WrongContractAddressOrABI('Wrong contract address or ABI', ex)
             return False
 
         return True
@@ -147,5 +149,4 @@ class EthConnector:
         except Exception as ex:
             self.logger.error("Error executing %s transaction: %s", name, type(ex))
             self.logger.error(ex.args)
-
             raise CriticalTransactionError(name)

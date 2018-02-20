@@ -39,7 +39,8 @@ class ProcessorDelegate(metaclass=ABCMeta):
 
 class Processor(Thread):
 
-    def __init__(self, id: str, ipfs_server: str, ipfs_port: int, data_dir: str, abi_path: str, delegate: ProcessorDelegate):
+    def __init__(self, id: str, ipfs_server: str, ipfs_port: int,
+                 data_dir: str, abi_path: str, delegate: ProcessorDelegate):
 
         super().__init__()
 
@@ -61,9 +62,17 @@ class Processor(Thread):
 
     def prepare(self, kernel: str, dataset: str, batch: int) -> bool:
         try:
-            self.kernel = Kernel(address=kernel, abi_path=self.abi_path, abi_file='Kernel', ipfs_api=self.__ipfs_api)
+            self.kernel = Kernel(address=kernel,
+                                 abi_path=self.abi_path,
+                                 abi_file='Kernel',
+                                 ipfs_api=self.__ipfs_api)
             result = self.kernel.init_contract()
-            self.dataset = Dataset(batch_no=batch, address=dataset, abi_path=self.abi_path, abi_file='Dataset', ipfs_api=self.__ipfs_api)
+
+            self.dataset = Dataset(batch_no=batch,
+                                   address=dataset,
+                                   abi_path=self.abi_path,
+                                   abi_file='Dataset',
+                                   ipfs_api=self.__ipfs_api)
             result &= self.dataset.init_contract()
         except Exception as ex:
             self.logger.error("Error instantiating cognitive job entities: %s", type(ex))
@@ -71,7 +80,8 @@ class Processor(Thread):
             return False
         return result
 
-    def get_time_estimate(self):
+    @staticmethod
+    def get_time_estimate():
         # TODO: Implement
         return 0
 
