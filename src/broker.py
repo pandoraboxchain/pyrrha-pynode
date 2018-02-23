@@ -5,7 +5,7 @@ from patterns.singleton import *
 from node.worker_node import *
 from job.cognitive_job import *
 from processor.processor import *
-from patterns.exceptions import *
+from webapi.web_socket_listener import *
 
 
 class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, ProcessorDelegate):
@@ -54,8 +54,6 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
                                contract=self.manager.eth_worker_contract)
         self.jobs = {}
         self.processors = {}
-
-        # self.api = WebAPI(config=self.config.webapi, delegate=self)
 
     def connect(self) -> bool:
         """

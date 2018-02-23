@@ -8,6 +8,7 @@ import json
 from configparser import ConfigParser
 from broker import Broker
 from manager import Manager
+from webapi.web_socket_listener import *
 
 logging.basicConfig(level=logging.INFO,
                     format='(%(threadName)-10s) %(levelname)s: %(message)s',
@@ -17,6 +18,9 @@ logging.basicConfig(level=logging.INFO,
 def run_pynode():
     try:
         manager = Manager.get_instance()
+        # startup web socket API
+    #    WebSocket('localhost', 9090).startup_listener()
+        # startup broker main process
         broker = Broker(eth_server=manager.eth_host,
                         abi_path=manager.eth_abi_path,
                         pandora=manager.eth_pandora,
@@ -46,8 +50,32 @@ def run_tests():
 
 def main(argv):
     help = """
-        Pandora Boxchain python node realisation                                                 
-        to see more \bhttps://pandoraboxchain.ai/\b 
+        Pandora Boxchain python node realisation    
+        
+                -/////////+++++/`                
+             `/ss:--:sds/d/````.hNso-             
+           /hNhsoosh+.   `h+     ss`/ss`          
+          so     yoh/      yy//+++dh- /h`         
+         y+    `h/  yo  -ohM+...`.d+/sssm-        
+       `hh++++od/    sds/-h:    `h:    -sN/       
+      `dN`````-Mh`  .d- -mo::::/m:     `h/yo      
+     .d:m     `m:d.-d/os++yds:-.:os+. .d-  oy`    
+    -d.`m     `m .dmy/`     -ossooshNdN-    +d    
+    so :Mhoooood: so          :Mh`    :d.  -NM    
+    so/h`y+     y++o          :d:d.    .d-:d.N    
+    sNs   os     oNo          -d .dsoooosNd``N`   
+    :d     dhmdsooyyo:      -odm: s+     os +y    
+     :h` `y/ `/oo/..-+hh+:os+ho`y+o+     osos     
+      .h:h:     `d+/////N/ `y+   oNo     +Mo      
+       `dh:    .h-    `h:-oyh    `dsoo++oN+       
+        `yyos+:d-````-mds/` /h` `h:    `h/        
+          oo .oN+++++od`     -h:d-    `h:         
+           /s/`/h`    :h.    -shyoosmmh-          
+             .+shd.    .d:/ss/` `/ss/`            
+                `/ooo+++oooo+++++-                
+                                                     
+        to see more https://pandoraboxchain.ai/ 
+        
         Current configuration performs launch with different parameters and configurations
          
         example >python ./pynode.py - starts pynode with default config 
@@ -132,12 +160,6 @@ def main(argv):
                         dest="worker_node",
                         help='setting up currently created worker contract address ',
                         metavar='')
-    parser.add_argument('-d ',
-                        '--dockerize',
-                        action='store_true',
-                        dest='prep_docker_config',
-                        default=False,
-                        help='prepare node configuration for using in as doker image')
     parser.add_argument('-t ',
                         '--test',
                         action="store_true",
@@ -201,12 +223,9 @@ def main(argv):
         # inst contracts
         instantiate_contracts(results, eth_hooks)
         # launch tests
-        run_tests()
         print("Launch tests")
-    elif results.prep_docker_config:
-        print("Prepare configs for docker container creation")
-        # uncomment for
-        # use_env_cfg()
+        run_tests()
+
     else:
         if results.worker_node:
             worker_contract_address = results.worker_node
@@ -281,14 +300,22 @@ def use_env_cfg():
     config_file = open('../pynode.ini', "w")
     while 1:
         line = config_tmp.readline()
-        if not line: break
-        if os.environ['ETHEREUM_HOST']: line = line.replace('ETHEREUM_HOST', os.environ['ETHEREUM_HOST'])
-        if os.environ['ETHEREUM_LOCAL_HOST']: line = line.replace('ETHEREUM_LOCAL_HOST', os.environ['ETHEREUM_LOCAL_HOST'])
-        if os.environ['IPFS_INFURA_HOST']: line = line.replace('IPFS_INFURA_HOST', os.environ['IPFS_INFURA_HOST'])
-        if os.environ['IPFS_PANDORA_HOST']: line = line.replace('IPFS_PANDORA_HOST', os.environ['IPFS_PANDORA_HOST'])
-        if os.environ['IPFS_LOCALHOST']: line = line.replace('IPFS_LOCALHOST', os.environ['IPFS_LOCALHOST'])
-        if os.environ['CONTRACT_PANDORA']: line = line.replace('CONTRACT_PANDORA', os.environ['CONTRACT_PANDORA'])
-        if os.environ['CONTRACT_WORKER_NODE']: line = line.replace('CONTRACT_WORKER_NODE', os.environ['CONTRACT_WORKER_NODE'])
+        if not line:
+            break
+        if os.environ['ETHEREUM_HOST']:
+            line = line.replace('ETHEREUM_HOST', os.environ['ETHEREUM_HOST'])
+        if os.environ['ETHEREUM_LOCAL_HOST']:
+            line = line.replace('ETHEREUM_LOCAL_HOST', os.environ['ETHEREUM_LOCAL_HOST'])
+        if os.environ['IPFS_INFURA_HOST']:
+            line = line.replace('IPFS_INFURA_HOST', os.environ['IPFS_INFURA_HOST'])
+        if os.environ['IPFS_PANDORA_HOST']:
+            line = line.replace('IPFS_PANDORA_HOST', os.environ['IPFS_PANDORA_HOST'])
+        if os.environ['IPFS_LOCALHOST']:
+            line = line.replace('IPFS_LOCALHOST', os.environ['IPFS_LOCALHOST'])
+        if os.environ['CONTRACT_PANDORA']:
+            line = line.replace('CONTRACT_PANDORA', os.environ['CONTRACT_PANDORA'])
+        if os.environ['CONTRACT_WORKER_NODE']:
+            line = line.replace('CONTRACT_WORKER_NODE', os.environ['CONTRACT_WORKER_NODE'])
         config_file.write(line)
     config_file.close()
     config_tmp.close()

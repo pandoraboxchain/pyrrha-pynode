@@ -29,7 +29,7 @@ class Manager:
     launch_mode = 0
 
     # variable for storing global pynode state
-    state = None
+    state = 'Online'
 
     # variable for global storing worker state
     worker_contract_state = None
