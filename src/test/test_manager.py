@@ -159,5 +159,3 @@ def launch_moc_service(*args):
 
 if __name__ == "__main__":
     launch_moc_service(sys.argv)
-
-

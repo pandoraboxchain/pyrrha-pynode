@@ -45,8 +45,45 @@ def run_tests():
 
 
 def main(argv):
-    """Parses command-line options and evokes `run`"""
-    parser = argparse.ArgumentParser()
+    help = """
+        Pandora Boxchain python node realisation                                                 
+        to see more \bhttps://pandoraboxchain.ai/\b 
+        Current configuration performs launch with different parameters and configurations
+         
+        example >python ./pynode.py - starts pynode with default config 
+                                      placed in pynode.ini file 
+                                      and use SOFT launch mode 
+                                             'ganache' eth instance 
+                                             'local' config for ipfs 
+
+        if we need launch with different ETH HOST and IPFS config use launch params
+        example >python ./pynode.py -e (--etherum) remote -i (--ipfs) infura
+                    - starts pynoode in SOFT mode
+                    with eth instance to connect remote  = http://bitcoin.pandora.network:4444
+                    and IPFS infura config server = https://ipfs.infura.io
+                                           port = 5001
+
+        -m (--mode) is integer value that performs launch mode definition
+            0 = 'SOFT' - production launch in daemon mode
+            1 = 'HARD' - develop mode with raise exceptions and stopping process
+
+        -c (--config) performs path for custom config file for launch params
+        -a (--abi) performs change abi directory path
+
+        -w (--worker) alow to set custom worker contract address
+                      seted by console value will replace value in config file
+                      for this launch
+
+        -t (--test) perform launch local acceptance tests
+                    (instantiate local listener and launch tests from folder test/acceptance)
+                    (every test can be launched from test file launch)
+                    If need to launch only test_listener (eth node emulation)
+                    launch test/test_manager.py as standalone application
+
+        -d (--dockerize) prepare pynode configuration for create docker image
+    """
+
+    parser = argparse.ArgumentParser(description=help, formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-m',
                         '--mode',
@@ -54,49 +91,60 @@ def main(argv):
                         dest='launch_mode',
                         default='0',
                         help='launch mode for pynode, '
-                             'set value "1" for launch in strict, develop mode (default value is 0)')
+                             'set value "1" for launch in strict, '
+                             'develop mode (default value is 0)',
+                        metavar='')
     parser.add_argument('-c',
                         '--config',
                         action="store",
                         dest='configuration_file',
                         default='../pynode.ini',
-                        help='startup pyrrha-pynode with custom configuration file (default is ../pynode.ini)')
+                        help='startup pyrrha-pynode with custom configuration file '
+                             '(default is ../pynode.ini)',
+                        metavar='')
     parser.add_argument('-e',
                         '--ethereum',
                         action="store",
                         dest='ethereum_use',
                         default='ganache',
-                        help='setting up current used host for ethereum node (default is local)')
+                        help='setting up current used host for ethereum node '
+                             '(default is local)',
+                        metavar='')
     parser.add_argument('-a',
                         '--abi',
                         action='store',
                         dest='abi_path',
                         default='../abi',
-                        help='setting up path to folder with ABI files (default is ../../abi)')
+                        help='setting up path to folder with ABI files '
+                             '(default is ../../abi)',
+                        metavar='')
     parser.add_argument('-i',
                         '--ipfs',
                         action='store',
                         dest='ipfs_use',
                         default='local',
-                        help='setting up current used host for ipfs connection (default is local)')
+                        help='setting up current used host for ipfs connection '
+                             '(default is local)',
+                        metavar='')
     parser.add_argument('-w',
                         '--worker',
                         action='store',
                         dest="worker_node",
-                        help='setting up currently created worker contract address ')
-    parser.add_argument('-d',
+                        help='setting up currently created worker contract address ',
+                        metavar='')
+    parser.add_argument('-d ',
                         '--dockerize',
-                        action='store',
+                        action='store_true',
                         dest='prep_docker_config',
                         default=False,
                         help='prepare node configuration for using in as doker image')
-    parser.add_argument('-t',
+    parser.add_argument('-t ',
                         '--test',
-                        action="store",
+                        action="store_true",
                         dest='run_test',
                         default=False,
                         help='setup host for launch tests')
-    parser.add_argument('-v',
+    parser.add_argument('-v ',
                         '--version',
                         action='version',
                         version='%(prog)s 0.9.1')
@@ -160,21 +208,10 @@ def main(argv):
         # uncomment for
         # use_env_cfg()
     else:
-        print("Node launch mode             : " + str(results.launch_mode))
-        print("Ethereum use                 : " + str(results.ethereum_use))
-        print("Ethereum host                : " + str(eth_host))
-        print("Primary contracts addresses")
-        print("Pandora main contract        : " + str(pandora_address))
         if results.worker_node:
             worker_contract_address = results.worker_node
         else:
             worker_contract_address = worker_address
-        print("Worker node contract         : " + str(worker_contract_address))
-        print("IPFS configuration")
-        print("IPFS use                     : " + str(results.ipfs_use))
-        print("IPFS host                    : " + str(ipfs_host))
-        print("IPFS port                    : " + str(ipfs_port))
-        print("IPFS file storage            : " + str(ipfs_storage))
 
         manager.launch_mode = results.launch_mode
         manager.eth_host = eth_host
@@ -184,6 +221,19 @@ def main(argv):
         manager.ipfs_host = ipfs_host
         manager.ipfs_port = ipfs_port
         manager.ipfs_storage = ipfs_storage
+
+        print("Pynode production launch")
+        print("Node launch mode             : " + str(results.launch_mode))
+        print("Ethereum use                 : " + str(results.ethereum_use))
+        print("Ethereum host                : " + str(eth_host))
+        print("Primary contracts addresses")
+        print("Pandora main contract        : " + str(pandora_address))
+        print("Worker node contract         : " + str(worker_contract_address))
+        print("IPFS configuration")
+        print("IPFS use                     : " + str(results.ipfs_use))
+        print("IPFS host                    : " + str(ipfs_host))
+        print("IPFS port                    : " + str(ipfs_port))
+        print("IPFS file storage            : " + str(ipfs_storage))
         # inst contracts
         instantiate_contracts(results, eth_hooks)
         # launch pynode
