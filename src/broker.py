@@ -20,8 +20,7 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
     ##
 
     def __init__(self, eth_server: str, abi_path: str, pandora: str,
-                 node: str, ipfs_server: str, ipfs_port: int,
-                 data_dir: str, use_hooks: bool = False):
+                 node: str, ipfs_server: str, ipfs_port: int, data_dir: str):
         """
         Instantiates Broker object and its members, but does not initiates them (network interfaces are not created/
         bind etc). Broker follows two-step initialization pattern (`Broker(...)` followed by `broker.run` call.
@@ -36,7 +35,8 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
 
         # Initializing logger object
         self.logger = logging.getLogger("broker")
-        self.mode = Manager.get_instance().launch_mode
+        self.manager = Manager.get_instance()
+        self.mode = self.manager.launch_mode
 
         # Saving config
         self.eth_server = eth_server
@@ -48,12 +48,10 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         # Instantiating services objects
         EthConnector.server = self.eth_server
         self.pandora = EthConnector(address=pandora,
-                                    abi_path=self.abi_path,
-                                    abi_file='PandoraHooks' if use_hooks else 'Pandora')
+                                    contract=self.manager.eth_pandora_contract)
         self.node = WorkerNode(delegate=self,
                                address=node,
-                               abi_path=self.abi_path,
-                               abi_file='WorkerNode')
+                               contract=self.manager.eth_worker_contract)
         self.jobs = {}
         self.processors = {}
 
@@ -65,15 +63,6 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
 
         :return: Success or failure status as a bool value
         """
-
-        # Trying to bind web api port (to fail early before trying everything else more complex)
-        # self.logger.info("Starting api...")
-        # if not self.api.bind():
-        #     self.logger.error("Can't bind to Web API port, shutting down")
-        #     return False
-
-        # Since all necessary network environments are available for now we can run the services as a separate threads
-        # self.api.run()
 
         try:
             result = EthConnector.connect()
@@ -90,16 +79,11 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
             return False
 
         job_address = self.node.cognitive_job_address()
-        if job_address == '0x0000000000000000000000000000000000000000':
-            self.logger.info("Job address is 0x0 : no work specified")
-            if self.mode == 1:
-                raise EmptyCognitiveJobInWorkerContract("Job address is 0x0: no work specified")
-        else:
-            self.logger.info("Initializing cognitive job contract for address %s", job_address)
-            if job_address is not None:
-                if job_address in self.jobs:
-                    raise Exception('Internal inconsistency: cognitive job is already initialized')
-                result = self.__init_cognitive_job(job_address)
+        self.logger.info("Initializing cognitive job contract for address %s", job_address)
+        if job_address is not None:
+            if job_address in self.jobs:
+                raise Exception('Internal inconsistency: cognitive job is already initialized')
+            result = self.__init_cognitive_job(job_address)
 
         result &= self.node.bootstrap() if result else False
         if result is not True:
@@ -110,7 +94,7 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
 
         super().start()
         # for test cases need to return running state
-        if self.mode == 0:
+        if self.mode == "0":
             self.node.join()
         return True
 
@@ -130,8 +114,7 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         try:
             job = CognitiveJob(delegate=self,
                                address=job_address,
-                               abi_path=self.abi_path,
-                               abi_file='CognitiveJob')
+                               contract=self.manager.eth_cognitive_job_contract)
             result = job.init_contract()
             result &= job.bootstrap() if result else False  # subscribe on filter events
         except Exception as ex:
@@ -170,11 +153,17 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
             return self.processors[processor_id]
 
         # prepare processor for calculating data
-        processor = Processor(id=processor_id, ipfs_server=self.ipfs_server, ipfs_port=self.ipfs_port,
-                              abi_path=self.abi_path, data_dir=self.data_dir, delegate=self)
+        processor = Processor(id=processor_id,
+                              ipfs_server=self.ipfs_server,
+                              ipfs_port=self.ipfs_port,
+                              abi_path=self.abi_path,
+                              data_dir=self.data_dir,
+                              delegate=self)
         self.processors[processor_id] = processor
         processor.run()
-        processor.prepare(kernel=job.kernel_address(), dataset=job.dataset_address(), batch=batch)
+        processor.prepare(kernel=job.kernel_address(),
+                          dataset=job.dataset_address(),
+                          batch=batch)
         return processor
 
     ##
@@ -182,7 +171,6 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
     ##
 
     # WorkerNodeDelegate
-
     def create_cognitive_job(self, job_address: str):
         if job_address in self.jobs:
             return
@@ -213,13 +201,11 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         processor.compute()
 
     # CognitiveJobDelegate
-
     def terminate_job(self, job: CognitiveJob):
         # TODO: Implement
         pass
 
     # ProcessorDelegate
-
     def processor_load_complete(self, processor_id: str):
         self.node.transact_accept_valid_data()
 

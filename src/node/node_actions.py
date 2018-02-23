@@ -5,9 +5,10 @@ class NodeActions(StatefulContract):
 
     def cognitive_job_address(self) -> str:
         address = self.contract.call().activeJob()
-        if address == '0':
+        trimmed_address = address.replace('0', '')
+        if trimmed_address == 'x':
             address = None
-        return address.lower()
+        return address
 
     def transact_alive(self):
         self.logger.info('Sending alive status')

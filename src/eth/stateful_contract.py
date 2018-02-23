@@ -17,7 +17,7 @@ class StatefulContract(EthConnector, StateMachine):
 
     def __process_state(self):
         state = self.contract.call().currentState()
-        self.logger.info("Contract %s initial state is %s", self.abi_file, self.state_table[state].name)
+        self.logger.info("Contract %s initial state is %s", self.__class__.__name__, self.state_table[state].name)
         self.state = state
 
     def __bind_events(self) -> bool:
@@ -34,5 +34,7 @@ class StatefulContract(EthConnector, StateMachine):
         state_old = event['args']['oldState']
         state_new = event['args']['newState']
         self.logger.info("Contract %s changed its state from %s to %s",
-                          self.abi_file, self.state_table[state_old].name, self.state_table[state_new].name)
+                         self.__class__.__name__,
+                         self.state_table[state_old].name,
+                         self.state_table[state_new].name)
         self.state = state_new

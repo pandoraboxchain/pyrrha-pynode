@@ -1,32 +1,14 @@
-import json
 import logging
 
 from manager import Manager
 from typing import Callable
 from patterns.decorators import *
 from patterns.exceptions import *
-from os import path
 from web3 import Web3, HTTPProvider
 
 
 class CriticalTransactionError(Exception):
     pass
-
-
-def read_abi(abi_path: str, file: str) -> str:
-    """
-    Loads ABI from a compiled file
-
-    :param abi_path: path to directory (relative to the current file) that contains ABI files
-    :param file: name of the ABI file (without extension, it should be .json)
-    :return: returns read ABI dictionary object suitable for using in Web3
-    """
-
-    here = path.abspath(path.dirname(__file__))
-    file = "%s.json" % file
-    with open(path.join(here, abi_path, file), encoding='utf-8') as f:
-        artifact = json.load(f)
-    return artifact['abi']
 
 
 class EthConnector:
@@ -41,22 +23,19 @@ class EthConnector:
     Class also allows accessing other contracts, simplifying Web3 API usage to instantiate them.
     """
 
-    read_abi = staticmethod(read_abi)
-
     web3 = None
     account = None
     server = None
     mode = None
 
-    def __init__(self, address: str, abi_path: str, abi_file: str):
+    def __init__(self, address: str, contract):
         # Initializing logger object
         self.logger = logging.getLogger("EthConnector")
         self.mode = Manager.get_instance().launch_mode
 
         # Saving config
         self.address = address
-        self.abi_path = abi_path
-        self.abi_file = abi_file
+        self.abi_file = contract
 
         # Initializing empty config
         self.contract = None
@@ -93,14 +72,8 @@ class EthConnector:
     def init_contract(self) -> bool:
         if self.web3 is None:
             raise NotInitialized("Web 3 is not initialized, unable to connect")
-
-        self.contract = self.contract_at(self.address, self.abi_file)
-        if self.contract is False:
-            return False
-
-        # Calling getter method to check whether contract was initiated with a proper address
-        # (corresponding to the given ABI)
         try:
+            self.contract = self.contract_at(self.address)
             self.owner = self.contract.call().owner()
         except Exception as ex:
             self.logger.error('Wrong contract address or ABI, got exception %s', type(ex))
@@ -119,26 +92,16 @@ class EthConnector:
         self.event_filter.start()
         self.event_filter.watch(callback)
 
-    def contract_at(self, address: str, abi_file: str):
+    def contract_at(self, address: str):
         if self.web3 is None:
             raise NotInitialized()
-
-        self.logger.info('Reading contract ABI %s...', abi_file)
         try:
-            abi = read_abi(self.abi_path, abi_file)
-        except Exception as ex:
-            self.logger.error('Error reading contract ABI file: %s', type(ex))
-            self.logger.error(ex.args)
-            return None
-
-        self.logger.info('Getting contract %s...', address)
-        try:
-            contract = self.web3.eth.contract(address=address, abi=abi)
+            contract = self.web3.eth.contract(address=address, abi=self.abi_file)
         except Exception as ex:
             self.logger.error('Error getting contract: %s', type(ex))
             self.logger.error(ex.args)
             return None
-        self.logger.info('Contract ABI instantiated')
+        self.logger.info('Connector %s ABI instantiated', self.__class__.__name__)
 
         return contract
 

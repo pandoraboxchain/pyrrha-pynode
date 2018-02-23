@@ -84,9 +84,21 @@ class BaseCoreConfiguration:
         else:
             BaseCoreConfiguration.__instance = self
 
-    def set_default_values(self):
-        self.pandora_hooks_address = "0x2c2b9c9a4a25e24b174f26114e8926a9f2128fe4"
-        self.worker_node_address = "0x5677db552d5fd9911a5560cb0bd40be90a70eff2"
+    def set_default_values(self, *addresses):
+        if addresses:
+            base_pandora_address = addresses[0]
+            base_worker_address = addresses[1]
+
+        if base_pandora_address:
+            self.pandora_hooks_address = base_pandora_address
+        else:
+            self.pandora_hooks_address = "0x2c2b9c9a4a25e24b174f26114e8926a9f2128fe4"
+
+        if base_worker_address:
+            self.worker_node_address = base_worker_address
+        else:
+            self.worker_node_address = "0x5677db552d5fd9911a5560cb0bd40be90a70eff2"
+
         self.cognitive_job_address = "0xb9462ef3441346dbc6e49236edbb0df207db09b7"
         self.kernel_address = "0x345ca3e014aaf5dca488057592ee47305d9b3e10"
         self.dataset_address = "0xf12b5dd4ead5f743c6baa640b0216200e89b60da"

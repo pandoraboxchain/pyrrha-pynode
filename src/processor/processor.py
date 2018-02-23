@@ -4,6 +4,7 @@ from threading import Thread
 from ipfs.ipfs_connector import *
 from entities.kernel import *
 from entities.dataset import *
+from manager import Manager
 
 
 class IPFSError (Exception):
@@ -46,6 +47,7 @@ class Processor(Thread):
 
         # Initializing logger object
         self.logger = logging.getLogger("Processor")
+        self.manager = Manager.get_instance()
 
         # Configuring
         self.id = id
@@ -57,21 +59,21 @@ class Processor(Thread):
         self.delegate = delegate
 
         # Initializing IPFS
-        self.__ipfs_api = IPFSConnector(server=ipfs_server, port=ipfs_port, data_dir=data_dir)
+        self.__ipfs_api = IPFSConnector(server=ipfs_server,
+                                        port=ipfs_port,
+                                        data_dir=data_dir)
         self.__ipfs_api.connect()
 
     def prepare(self, kernel: str, dataset: str, batch: int) -> bool:
         try:
             self.kernel = Kernel(address=kernel,
-                                 abi_path=self.abi_path,
-                                 abi_file='Kernel',
+                                 contract=self.manager.eth_kernel_contract,
                                  ipfs_api=self.__ipfs_api)
             result = self.kernel.init_contract()
 
             self.dataset = Dataset(batch_no=batch,
                                    address=dataset,
-                                   abi_path=self.abi_path,
-                                   abi_file='Dataset',
+                                   contract=self.manager.eth_dataset_contract,
                                    ipfs_api=self.__ipfs_api)
             result &= self.dataset.init_contract()
         except Exception as ex:

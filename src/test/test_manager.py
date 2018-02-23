@@ -1,6 +1,8 @@
 import logging
 import threading
 import sys
+import os
+import json
 
 from manager import Manager
 from broker import Broker
@@ -20,21 +22,23 @@ class TestManager:
     test_listener_thread = None
     test_core_configuration = None
 
+    # get customer configured primary contracts addresses
+    pandora_contract_address = None
+    worker_contract_address = None
+
     # on init read configuration for running tests
-    def __init__(self, *config_file):
-        if len(config_file) == 0:
-            # for launch all test by console
-            config_file = '../pynode.ini'
-        logging.info('Init test manager with %s config file', config_file)
-        try:
-            config = ConfigParser()
-            config.read(config_file)
-            main_section = config['TEST']
-            self.host = main_section['host']
-        except Exception as ex:
-            logging.error("Error reading test config: %s, exiting", type(ex))
-            logging.error(ex.args)
-            return
+    def __init__(self, *host):
+        manager = Manager.get_instance()
+        if manager.test_host is None:
+            if host:
+                # if config file set manually
+                instantiate_manager(host[0])
+            else:
+                # if launch only listener from test_manager as launcher
+                instantiate_manager('../../pynode.ini')
+        self.host = manager.eth_host
+        self.pandora_contract_address = manager.eth_pandora
+        self.worker_contract_address = manager.eth_worker
 
     def get_test_listener_host(self) -> str:
         return self.host
@@ -51,42 +55,22 @@ class TestManager:
         if demon:
             self.test_listener_thread.daemon = True
         self.test_listener_thread.start()
-        print('Listener started in demon mode : ' + str(demon))
+        print('Listener started in demon mode  : ' + str(demon))
 
     @staticmethod
     def run_test_pynode(*config_file) -> int:
-        if len(config_file) == 0:
-            # for launch all test by console
-            config_file = '../pynode.ini'
-        logging.info('Starting broker with config')
-        logging.info("Loading config file '%s'", config_file)
         try:
-            config = ConfigParser()
-            config.read(config_file)
+            manager = Manager.get_instance()
+            print("Launch pynode for test on host  : " + str(manager.eth_host))
+            broker = Broker(eth_server=manager.eth_host,
+                            abi_path="../" + manager.eth_abi_path,
+                            pandora=manager.eth_pandora,
+                            node=manager.eth_worker,
+                            data_dir="../" + manager.ipfs_storage,
+                            ipfs_server=manager.ipfs_host,
+                            ipfs_port=manager.ipfs_port)
         except Exception as ex:
-            logging.error("Error reading config: %s, exiting", type(ex))
-            logging.error(ex.args)
-            return
-
-        try:
-            test_section = config['TEST']
-            eth_contracts = config['Contracts']
-            ipfs_section = config['IPFS']
-            host = test_section['host']
-            ipfs_use = config['IPFS.%s' % ipfs_section['use']]
-
-            Manager.get_instance().launch_mode = 1
-
-            broker = Broker(eth_server=host,
-                            abi_path=eth_contracts['abi_path'],
-                            pandora=eth_contracts['pandora'],
-                            node=eth_contracts['worker_node'],
-                            data_dir=ipfs_section['store_in'],
-                            ipfs_server=ipfs_use['server'],
-                            ipfs_port=int(ipfs_use['port']),
-                            use_hooks=eth_contracts.getboolean('hooks'))
-        except Exception as ex:
-            logging.error("Error reading config: %s, exiting", type(ex))
+            logging.error("Error launching pynode for test")
             logging.error(ex.args)
             raise
 
@@ -97,9 +81,79 @@ class TestManager:
         return 1
 
 
+def instantiate_manager(config_file_path: str):
+    manager = Manager.get_instance()
+    # setup default test host
+    test_host = 'http://localhost:4000'
+    # read configs
+    print("Configuration file path      : " + str(config_file_path))
+    if config_file_path:
+        try:
+            config = ConfigParser()
+            config.read(config_file_path)
+            eth_contracts = config['Contracts']
+            ipfs_section = config['IPFS']
+            pandora_address = eth_contracts['pandora']
+            worker_address = eth_contracts['worker_node']
+            ipfs_storage = ipfs_section['store_in']
+            ipfs_use_section = config['IPFS.%s' % 'local']
+            ipfs_host = ipfs_use_section['server']
+            ipfs_port = ipfs_use_section['port']
+        except Exception as ex:
+            print("Error reading config: %s, exiting", type(ex))
+            logging.error(ex.args)
+            return
+    print("Config reading success")
+
+    manager.launch_mode = 1
+    manager.eth_host = test_host
+    manager.eth_abi_path = config_file_path
+    manager.eth_pandora = pandora_address
+    manager.eth_worker = worker_address
+    manager.ipfs_storage = ipfs_storage
+    manager.ipfs_host = ipfs_host
+    manager.ipfs_port = ipfs_port
+    manager.test_host = test_host
+    # instantiate contracts
+    abi_path = config_file_path.replace("pynode.ini", "abi")
+    instantiate_contracts(abi_path, True)
+
+
+def instantiate_contracts(abi_path, eth_hooks):
+    manager = Manager.get_instance()
+    if os.path.isdir(abi_path):
+        print("ABI folder path              : " + str(abi_path))
+        if eth_hooks:
+            if os.path.isfile(abi_path + "\PandoraHooks.json"):
+                with open(abi_path + "\PandoraHooks.json", encoding='utf-8') as pandora_contract_file:
+                    manager.eth_pandora_contract = json.load(pandora_contract_file)['abi']
+        else:
+            if os.path.isfile(abi_path + "\Pandora.json"):
+                with open(abi_path + "\Pandora.json", encoding='utf-8') as pandora_contract_file:
+                    manager.eth_pandora_contract = json.load(pandora_contract_file)['abi']
+
+        if os.path.isfile(abi_path + "\WorkerNode.json"):
+            with open(abi_path + "\WorkerNode.json", encoding='utf-8') as worker_contract_file:
+                manager.eth_worker_contract = json.load(worker_contract_file)['abi']
+        if os.path.isfile(abi_path + "\CognitiveJob.json"):
+            with open(abi_path + "\CognitiveJob.json", encoding='utf-8') as eth_cognitive_job_contract:
+                manager.eth_cognitive_job_contract = json.load(eth_cognitive_job_contract)['abi']
+        if os.path.isfile(abi_path + "\Kernel.json"):
+            with open(abi_path + "\Kernel.json", encoding='utf-8') as eth_kernel_contract:
+                manager.eth_kernel_contract = json.load(eth_kernel_contract)['abi']
+        if os.path.isfile(abi_path + "\CognitiveJob.json"):
+            with open(abi_path + "\Dataset.json", encoding='utf-8') as eth_dataset_contract:
+                manager.eth_dataset_contract = json.load(eth_dataset_contract)['abi']
+        print("ABI loading success")
+    else:
+        print("ABI files not found, exiting")
+        return
+
+
 def launch_moc_service(*args):
     manager = TestManager('../../pynode.ini')
-    manager.get_configuration().set_default_values()
+    manager.get_configuration().set_default_values(manager.pandora_contract_address,
+                                                   manager.worker_contract_address)
     manager.run_test_listener()
 
 
