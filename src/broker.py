@@ -1,11 +1,12 @@
 import sys
+import logging
 
 from manager import Manager
+from patterns.pynode_logger import LogSocketHandler
 from patterns.singleton import *
 from node.worker_node import *
 from job.cognitive_job import *
 from processor.processor import *
-from webapi.web_socket_listener import *
 
 
 class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, ProcessorDelegate):
@@ -34,7 +35,7 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         Thread.__init__(self, daemon=True)
 
         # Initializing logger object
-        self.logger = logging.getLogger("broker")
+        self.logger = logging.getLogger("BROKER")
         self.manager = Manager.get_instance()
         self.mode = self.manager.launch_mode
 
@@ -61,6 +62,8 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
 
         :return: Success or failure status as a bool value
         """
+
+        self.logger.addHandler(LogSocketHandler())
 
         try:
             result = EthConnector.connect()
@@ -96,6 +99,8 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
             self.node.join()
         return True
 
+    def disconnect(self):
+        super().join(1)
     ##
     # Private supplementary functions
     ##

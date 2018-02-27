@@ -5,8 +5,11 @@ class Manager:
     Also will be used for saving metrics for perform operative access to
     pynode current states
     """
+    # pynode global
+    pynode_start_on_launch = None
 
     # base global eth settings for fast access from any module
+    eth_use = None
     eth_host = None
     eth_abi_path = None
     eth_pandora = None
@@ -17,6 +20,7 @@ class Manager:
     eth_kernel_contract = None
     eth_dataset_contract = None
     # base global ipfs settings for fast access from any module
+    ipfs_use = None
     ipfs_storage = None
     ipfs_host = None
     ipfs_port = None

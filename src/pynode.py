@@ -1,25 +1,19 @@
-import sys
-import os
 import unittest
 import logging
 import argparse
 import json
+import sys
+import os
 
 from configparser import ConfigParser
 from broker import Broker
 from manager import Manager
 from webapi.web_socket_listener import *
 
-logging.basicConfig(level=logging.INFO,
-                    format='(%(threadName)-10s) %(levelname)s: %(message)s',
-                    )
-
 
 def run_pynode():
     try:
         manager = Manager.get_instance()
-        # startup web socket API
-    #    WebSocket('localhost', 9090).startup_listener()
         # startup broker main process
         broker = Broker(eth_server=manager.eth_host,
                         abi_path=manager.eth_abi_path,
@@ -182,14 +176,19 @@ def main(argv):
             eth_section = config['Ethereum']
             eth_contracts = config['Contracts']
             ipfs_section = config['IPFS']
+            web_section = config['Web']
             eth_host = eth_section[results.ethereum_use]
             pandora_address = eth_contracts['pandora']
             worker_address = eth_contracts['worker_node']
             eth_hooks = eth_contracts['hooks']
+            pynode_start_on_launch = eth_contracts['start_on_launch']
             ipfs_storage = ipfs_section['store_in']
             ipfs_use_section = config['IPFS.%s' % results.ipfs_use]
             ipfs_host = ipfs_use_section['server']
             ipfs_port = ipfs_use_section['port']
+            socket_host = web_section['host']
+            socket_port = web_section['port']
+            socket_listen = web_section['connections']
         except Exception as ex:
             print("Error reading config: %s, exiting", type(ex))
             logging.error(ex.args)
@@ -201,14 +200,17 @@ def main(argv):
         # setup default test host
         test_host = 'http://localhost:4000'
         manager.launch_mode = 1
+        manager.eth_use = results.ethereum_use
         manager.eth_host = test_host
         manager.eth_abi_path = results.abi_path
         manager.eth_pandora = pandora_address
         manager.eth_worker = worker_address
         manager.ipfs_storage = ipfs_storage
+        manager.ipfs_use = results.ipfs_use
         manager.ipfs_host = ipfs_host
         manager.ipfs_port = ipfs_port
         manager.test_host = test_host
+        manager.pynode_start_on_launch = pynode_start_on_launch
 
         print("Pynode test launch")
         print("Node launch mode             : " + str(1))
@@ -233,13 +235,16 @@ def main(argv):
             worker_contract_address = worker_address
 
         manager.launch_mode = results.launch_mode
+        manager.eth_use = results.ethereum_use
         manager.eth_host = eth_host
         manager.eth_abi_path = results.abi_path
         manager.eth_pandora = pandora_address
         manager.eth_worker = worker_contract_address
+        manager.ipfs_use = results.ipfs_use
         manager.ipfs_host = ipfs_host
         manager.ipfs_port = ipfs_port
         manager.ipfs_storage = ipfs_storage
+        manager.pynode_start_on_launch = pynode_start_on_launch
 
         print("Pynode production launch")
         print("Node launch mode             : " + str(results.launch_mode))
@@ -255,9 +260,18 @@ def main(argv):
         print("IPFS file storage            : " + str(ipfs_storage))
         # inst contracts
         instantiate_contracts(results, eth_hooks)
+
+        #
+
+        #
+
+        # launch socket web listener
+        print("Launch client socket listener")
+        WebSocket(socket_host, socket_port, socket_listen)
         # launch pynode
-        print("Launch node")
-        run_pynode()
+        if pynode_start_on_launch is True:
+            print("Launch node")
+            run_pynode()
 
 
 def instantiate_contracts(results, eth_hooks):
