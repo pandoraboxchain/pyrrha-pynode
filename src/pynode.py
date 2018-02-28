@@ -260,11 +260,6 @@ def main(argv):
         print("IPFS file storage            : " + str(ipfs_storage))
         # inst contracts
         instantiate_contracts(results, eth_hooks)
-
-        #
-
-        #
-
         # launch socket web listener
         print("Launch client socket listener")
         WebSocket(socket_host, socket_port, socket_listen)
