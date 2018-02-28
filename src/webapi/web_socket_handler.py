@@ -3,7 +3,6 @@ import webapi
 import time
 import sys
 import pynode
-import logging
 
 from manager import Manager
 from webapi.web_api_models import *
@@ -20,7 +19,6 @@ class WebSocketHandler:
     mode = None
     manager = None
     listener = None
-    clients = None
 
     def __init__(self, listener):
         self.manager = Manager.get_instance()
@@ -35,18 +33,15 @@ class WebSocketHandler:
         print('request handled : ' + data)
         request = lambda: None
         request.__dict__ = json.loads(data)
-        if request.method == 'get_settings':
-            return self.get_current_settings()
-#        if request.method == 'set_settings':
-#            return self.set_current_settings(data)
         if request.method == 'startup':
             return pynode.run_pynode()
-#        if request.method == 'get_status':
-#            return self.get_status()
+        if request.method == 'get_settings':
+            return self.get_current_settings()
+        if request.method == 'get_status':
+            return self.get_current_status()
         return ''
 
     def get_current_settings(self):
-        # return settings from manager
         response = PynodeSettings()
         response.define_object(pynode_config_file_path=self.manager.eth_abi_path,
                                pynode_launch_mode=self.manager.launch_mode,
@@ -56,15 +51,12 @@ class WebSocketHandler:
                                ipfs_connection_host=self.manager.ipfs_host+":"+self.manager.ipfs_port,
                                pandora_contract_address=self.manager.eth_pandora,
                                worker_contract_address=self.manager.eth_worker)
-        return response.serialize()
+        return response
 
+    # currently not used (will be used after some broker refactoring)
     def set_current_settings(self, data):
         request = PynodeSettings()
         request = request.deserialize(data)
-        # not all data is enable for change
-        # possible to change :
-        # launch_mode, eth_node host, ipfs host,
-        # pandora contract address, worker contract address
         if request.pynode_launch_mode:
             self.manager.launch_mode = request.pynode_launch_mode
         if request.ethereum_connection_host:
@@ -77,14 +69,20 @@ class WebSocketHandler:
             self.manager.eth_worker = request.worker_contract_address
         return self.get_current_settings()
 
-    def get_status(self):
+    def get_current_status(self):
         # return current status from manager
-        response = PynodeStatus(pynode_host=self.manager.eth_host,
-                                ipfs_host=self.manager.ipfs_host + ':' + self.manager.ipfs_port,
-                                pandora_address=self.manager.eth_pandora,
-                                worker_address=self.manager.eth_worker,
-                                pynode_state=self.manager.state,
-                                worker_state=self.manager.worker_contract_state)
-        return response.serialize()
+        response = PynodeStatus()
+        response.define_object(state=self.manager.state,
+                               ethereum_host=self.manager.eth_host,
+                               ipfs_host=self.manager.ipfs_host+":"+self.manager.ipfs_port,
+                               pandora_address=self.manager.eth_pandora,
+                               worker_address=self.manager.eth_worker,
+                               worker_state=self.manager.worker_contract_state,
+                               job_address=self.manager.job_contract_address,
+                               job_status=self.manager.job_contract_state,
+                               kernel_address=self.manager.job_kernel_ipfs_address,
+                               dataset_address=self.manager.job_dataset_ipfs_address,
+                               job_result_address=self.manager.job_result_ipfs_address)
+        return response
 
 

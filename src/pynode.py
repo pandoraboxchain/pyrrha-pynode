@@ -269,7 +269,8 @@ def main(argv):
         print("Launch client socket listener")
         WebSocket(socket_host, socket_port, socket_listen)
         # launch pynode
-        if pynode_start_on_launch is True:
+        print(pynode_start_on_launch)
+        if pynode_start_on_launch == 'True':
             print("Launch node")
             run_pynode()
 

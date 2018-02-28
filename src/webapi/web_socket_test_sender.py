@@ -1,13 +1,15 @@
 import sys
 from socket import *
 
-
-def send_set_settings() -> str:
-    return """{"method": "set_settings","pynode_settings":{"pynode_config_file_path":"test","pynode_launch_mode": "1","ethereum_connection_use": "local","ethereum_connection_host": "localhost","ipfs_connection_use": "infura","ipfs_connection_host": "infura","pandora_contract_address": "0x0","worker_contract_address": "0x0"}}"""
-
-
+# ---------------------------------
+# test socket launcher/listener
+# ---------------------------------
 def send_get_settings() -> str:
     return """{"method":"get_settings"}"""
+
+
+def send_get_status() -> str:
+    return """{"method":"get_status"}"""
 
 
 def send_launch_pynode() -> str:
@@ -21,8 +23,9 @@ def send(*args):
     port = 9090
     address = (host, port)
     tcp_socket.connect(address)
-
+# change data for send different commands to socket
     data = send_launch_pynode()
+
     data = str.encode(data)
     tcp_socket.send(data)
     data = tcp_socket.recv(1024)

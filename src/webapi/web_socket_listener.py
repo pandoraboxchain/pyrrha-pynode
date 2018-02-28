@@ -1,10 +1,10 @@
 import socket
 import threading
-import webapi
 
 from logging import LogRecord
 from socket import *
-from webapi.web_socket_handler import WebSocketHandler
+from webapi.web_api_models import *
+from webapi.web_socket_handler import *
 
 
 class WebSocket(threading.Thread):
@@ -19,6 +19,10 @@ class WebSocket(threading.Thread):
     client = None
     address = None
 
+# ---------------------------------
+# base socket listener, completed as singleton
+# ---------------------------------
+    # listener is singleton
     @staticmethod
     def get_instance():
         if WebSocket.__instance is None:
@@ -40,6 +44,7 @@ class WebSocket(threading.Thread):
             WebSocket.__instance = self
             print("Socket listener started on " + str(socket_host) + ":"
                   + str(socket_port) + " for " + str(socket_clients) + " listeners")
+            # starting listener thread
             threading.Thread(target=self.startup_listener).start()
 
     def startup_listener(self):
@@ -54,16 +59,38 @@ class WebSocket(threading.Thread):
 # ---------------------------------
 # from socket to client methods
 # ---------------------------------
-    def update_client_status(self, data):
+    # method calls every change of global manager props
+    def update_node_status(self, manager: object):
         try:
-            self.client.send(str.encode(data))
+            response = PynodeStatus()
+            response.define_object(state=manager.state,
+                                   ethereum_host=manager.eth_host,
+                                   ipfs_host=manager.ipfs_host+":"+manager.ipfs_port,
+                                   pandora_address=manager.eth_pandora,
+                                   worker_address=manager.eth_worker,
+                                   worker_state=manager.worker_contract_state,
+                                   job_address=manager.job_contract_address,
+                                   job_status=manager.job_contract_state,
+                                   kernel_address=manager.job_kernel_ipfs_address,
+                                   dataset_address=manager.job_dataset_ipfs_address,
+                                   job_result_address=manager.job_result_ipfs_address)
+            if self.client is not None:
+                self.client.send(str.encode(ClassApiSerializer().serialize(response)))
         except Exception as ex:
             print(ex)
             return False
 
+    # method calls every time when new log record is append
     def update_log_record(self, record: LogRecord):
         try:
-            self.client.send(str.encode(record.msg))
+            response = PynodeLogRecord()
+            response.define_object(process_name=record.processName,
+                                   level_name=record.levelname,
+                                   file_name=record.filename,
+                                   module=record.module,
+                                   message=record.getMessage())
+            if self.client is not None:
+                self.client.send(str.encode(ClassApiSerializer().serialize(response)))
         except Exception as ex:
             print(ex)
             return False
@@ -71,17 +98,21 @@ class WebSocket(threading.Thread):
 # ---------------------------------
 # from client to socket methods
 # ---------------------------------
+    # listener for getting request from customer
+    # in current realisation {"method":"__name__"} available
+    # startup, get_settings, get_status (implemented on handler in WebSocketHandler class)
     def listen_to_client(self, client, address):
         while True:
             try:
                 data = client.recv(1024)
                 if data:
-                    response = str.encode(self.tcp_socket_handler.handle_request(bytes.decode(data)))
+                    result = self.tcp_socket_handler.handle_request(bytes.decode(data))
+                    response = str.encode(ClassApiSerializer().serialize(result))
                     client.send(response)
                 else:
                     print('Client disconnected')
             except Exception as ex:
-                client.close()
+                print(ex)
                 return False
 
 

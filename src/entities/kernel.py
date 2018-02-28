@@ -1,5 +1,7 @@
 import os
 import keras
+
+from manager import Manager
 from .entity import Entity
 from .dataset import Dataset
 
@@ -19,7 +21,9 @@ class Kernel(Entity):
 
         try:
             self.model_address = self.json_info['model']
+            Manager.get_instance().set_job_kernel_ipfs_address(self.model_address)
             self.weights_address = self.json_info['weights']
+            Manager.get_instance().set_job_dataset_ipfs_address(self.weights_address)
         except Exception as ex:
             self.logger.error("Wrong Kernel data file structure:")
             self.logger.error(ex.args)

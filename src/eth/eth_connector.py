@@ -6,6 +6,8 @@ from patterns.decorators import *
 from patterns.exceptions import *
 from web3 import Web3, HTTPProvider
 
+from patterns.pynode_logger import LogSocketHandler
+
 
 class CriticalTransactionError(Exception):
     pass
@@ -22,7 +24,7 @@ class EthConnector:
 
     Class also allows accessing other contracts, simplifying Web3 API usage to instantiate them.
     """
-
+    logger = None
     web3 = None
     account = None
     server = None
@@ -31,6 +33,7 @@ class EthConnector:
     def __init__(self, address: str, contract):
         # Initializing logger object
         self.logger = logging.getLogger("EthConnector")
+        self.logger.addHandler(LogSocketHandler.get_instance())
         self.mode = Manager.get_instance().launch_mode
 
         # Saving config
@@ -48,24 +51,24 @@ class EthConnector:
         if EthConnector.web3 is not None and not mode == 1:
             return True
 
-        logging.info('Connecting Ethereum node on %s...', EthConnector.server)
+        EthConnector.logger.info('Connecting Ethereum node on %s...', EthConnector.server)
         try:
             EthConnector.web3 = Web3(HTTPProvider(EthConnector.server))
             info = EthConnector.web3.eth.syncing
         except Exception as ex:
-            logging.error('Error connecting Ethereum node: %s', type(ex))
-            logging.error(ex.args)
+            EthConnector.logger.error('Error connecting Ethereum node: %s', type(ex))
+            EthConnector.logger.error(ex.args)
             if mode == 1:
                 raise EthConnectionException('Error connecting Ethereum node', ex)
             return False
 
         if info is not False:
-            logging.error('Ethereum node is not in synch')
+            EthConnector.logger.error('Ethereum node is not in synch')
             if mode == 1:
                 raise EthIsNotInSyncException('Ethereum node is not in synch', info)
             return False
-
-        logging.info('Ethereum node connected successfully')
+        Manager.get_instance().set_state('Online')
+        EthConnector.logger.info('Ethereum node connected successfully')
         return True
 
     @run_once
@@ -101,7 +104,8 @@ class EthConnector:
             self.logger.error('Error getting contract: %s', type(ex))
             self.logger.error(ex.args)
             return None
-        self.logger.info('Connector %s ABI instantiated', self.__class__.__name__)
+        Manager.get_instance().set_worker_contract_state('Initialized')
+        self.logger.info('Connector %s ABI instantiated', address)
 
         return contract
 

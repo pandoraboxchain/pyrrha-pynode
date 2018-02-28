@@ -35,7 +35,9 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         Thread.__init__(self, daemon=True)
 
         # Initializing logger object
-        self.logger = logging.getLogger("BROKER")
+        self.logger = logging.getLogger("Broker")
+        self.logger.addHandler(LogSocketHandler.get_instance())
+
         self.manager = Manager.get_instance()
         self.mode = self.manager.launch_mode
 
@@ -48,6 +50,7 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
 
         # Instantiating services objects
         EthConnector.server = self.eth_server
+        EthConnector.logger = self.logger
         self.pandora = EthConnector(address=pandora,
                                     contract=self.manager.eth_pandora_contract)
         self.node = WorkerNode(delegate=self,
@@ -62,8 +65,6 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
 
         :return: Success or failure status as a bool value
         """
-
-        self.logger.addHandler(LogSocketHandler())
 
         try:
             result = EthConnector.connect()
@@ -80,6 +81,7 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
             return False
 
         job_address = self.node.cognitive_job_address()
+        self.manager.set_job_contract_address(job_address)
         self.logger.info("Initializing cognitive job contract for address %s", job_address)
         if job_address is not None:
             if job_address in self.jobs:
@@ -216,6 +218,9 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
         self.node.transact_report_invalid_data()
 
     def processor_computing_complete(self, processor_id: str, results_file: str):
+        # set empty job contract address
+        self.manager.set_complete_reset()
+        # provide result
         self.node.transact_provide_results(results_file)
 
     def processor_computing_failure(self, processor_id: Union[str, None]):

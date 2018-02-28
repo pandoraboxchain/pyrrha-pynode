@@ -5,6 +5,7 @@ from ipfs.ipfs_connector import *
 from entities.kernel import *
 from entities.dataset import *
 from manager import Manager
+from patterns.pynode_logger import LogSocketHandler
 
 
 class IPFSError (Exception):
@@ -47,6 +48,7 @@ class Processor(Thread):
 
         # Initializing logger object
         self.logger = logging.getLogger("Processor")
+        self.logger.addHandler(LogSocketHandler.get_instance())
         self.manager = Manager.get_instance()
 
         # Configuring

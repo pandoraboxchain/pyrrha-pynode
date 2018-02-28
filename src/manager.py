@@ -5,6 +5,10 @@ class Manager:
     Also will be used for saving metrics for perform operative access to
     pynode current states
     """
+
+# ----------------------------------
+# Global Pynode settings CANT be changed while pynode is launched
+# ----------------------------------
     # pynode global
     pynode_start_on_launch = None
 
@@ -32,14 +36,29 @@ class Manager:
     # 1 = HARD mode (strict mode with raises exception for tests, debug and development)
     launch_mode = 0
 
+# ----------------------------------
+# Observed variables (change states on pynode process)
+# ----------------------------------
     # variable for storing global pynode state
-    state = 'Online'
+    state = 'Offline'                                       # 'Offline/Online'
 
     # variable for global storing worker state
-    worker_contract_state = None
+    worker_contract_state = 'NotInitialized'                # 'NotInitialized/Initialized'
 
-    # variable for global storing job contract state
-    job_contract_state = None
+    # variable for temporary storing job address
+    job_contract_address = ''                               # '' - empty or contract address
+
+    # variable for temporary storing job state
+    job_contract_state = ''                                 # '' - empty or one of job state
+
+    # variable for temporary storing kernel ipfs address
+    job_kernel_ipfs_address = ''                            # '' - empty or address while job is in process
+
+    # variable for temporary storing dataset ipfs address
+    job_dataset_ipfs_address = ''                           # '' - empty or address while job is in process
+
+    # variable for storing last result ipfs address
+    job_result_ipfs_address = ''                            # '' - empty or address while job is in process
 
     __instance = None
 
@@ -55,4 +74,54 @@ class Manager:
         if Manager.__instance is None:
             Manager()
         return Manager.__instance
+
+# ----------------------------------
+# setter methods for observed variables
+# ----------------------------------
+    def set_state(self, state: str):
+        self.state = state
+        self.on_property_value_change()
+
+    def set_worker_contract_state(self, state: str):
+        if state != self.worker_contract_state:  # avoid duplicates
+            self.worker_contract_state = state
+            self.on_property_value_change()
+
+    def set_job_contract_address(self, address: str):
+        self.job_contract_address = address
+        self.on_property_value_change()
+
+    def set_job_contract_state(self, state: str):
+        if state != self.job_contract_state:   # avoid duplicates
+            self.job_contract_state = state
+            self.on_property_value_change()
+
+    def set_job_kernel_ipfs_address(self, address: str):
+        self.job_kernel_ipfs_address = address
+        self.on_property_value_change()
+
+    def set_job_dataset_ipfs_address(self, address: str):
+        self.job_dataset_ipfs_address = address
+        self.on_property_value_change()
+
+    def set_job_result_ipfs_address(self, address: str):
+        self.job_result_ipfs_address = address
+        self.on_property_value_change()
+
+    def set_complete_reset(self):
+        self.job_contract_address('')
+        self.job_contract_state('')
+        self.kernel_ipfs_address('')
+        self.dataset_ipfs_address('')
+        self.on_property_value_change()
+
+# ----------------------------------
+# on data or state change event (send complete statuses by socket)
+# ----------------------------------
+    def on_property_value_change(self):
+        if self.launch_mode != 0:
+            from webapi.web_socket_listener import WebSocket
+            socket = WebSocket.get_instance()
+            socket.update_node_status(self)
+
 

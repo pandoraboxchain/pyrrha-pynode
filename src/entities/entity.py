@@ -1,3 +1,4 @@
+import json
 from eth.eth_connector import *
 from ipfs.ipfs_connector import IPFSConnector
 
