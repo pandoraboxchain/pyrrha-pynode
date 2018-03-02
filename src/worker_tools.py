@@ -17,7 +17,7 @@ class WorkerMaker:
 
     def __init__(self, eth_server: str, abi_path: str, pandora: str):
         # Initializing logger object
-        self.logger = logging.getLogger("Broker")
+        self.logger = logging.getLogger("WorkerTools")
         self.logger.addHandler(LogSocketHandler.get_instance())
 
         self.manager = Manager.get_instance()
