@@ -6,11 +6,17 @@ import sys
 import os
 
 from configparser import ConfigParser
+from threading import Barrier
+
 from broker import Broker
 from manager import Manager
 from webapi.web_socket_listener import *
+from worker_tools import *
 
 
+# -------------------------------------
+# main pynode launcher
+# -------------------------------------
 def run_pynode():
     try:
         manager = Manager.get_instance()
@@ -23,7 +29,7 @@ def run_pynode():
                         ipfs_server=manager.ipfs_host,
                         ipfs_port=manager.ipfs_port)
     except Exception as ex:
-        logging.error("Error reading config: %s, exiting", type(ex))
+        logging.error("Error broker initialization: %s, exiting", type(ex))
         logging.error(ex.args)
         return
 
@@ -34,6 +40,30 @@ def run_pynode():
     broker.join()
 
 
+# -------------------------------------
+# worker contract creator
+# -------------------------------------
+def run_worker_creation():
+    try:
+        manager = Manager.get_instance()
+        worker = WorkerMaker(eth_server=manager.eth_host,
+                             abi_path=manager.eth_abi_path,
+                             pandora=manager.eth_pandora)
+    except Exception as ex:
+        logging.error("Error worker contract creation: %s, exiting", type(ex))
+        logging.error(ex.args)
+        return
+
+    if worker.connect() is False:
+        return
+    else:
+        customer_address = input("Please insert your address : ")
+        worker.create_worker(customer_address)
+
+
+# -------------------------------------
+# test launcher
+# -------------------------------------
 def run_tests():
     loader = unittest.TestLoader()
     start_dir = 'test/acceptance'
@@ -102,7 +132,10 @@ def main(argv):
                     If need to launch only test_listener (eth node emulation)
                     launch test/test_manager.py as standalone application
 
-        -d (--dockerize) prepare pynode configuration for create docker image
+        -o (--obtain) provides an opportunity to create Worker node contract,
+                      Balance as well as authority will be assigned to this contract
+                      To prevent loss of progress please store the address in a safe place
+                      
     """
 
     parser = argparse.ArgumentParser(description=help, formatter_class=argparse.RawTextHelpFormatter)
@@ -151,15 +184,21 @@ def main(argv):
     parser.add_argument('-w',
                         '--worker',
                         action='store',
-                        dest="worker_node",
+                        dest='worker_node',
                         help='setting up currently created worker contract address ',
                         metavar='')
     parser.add_argument('-t ',
                         '--test',
-                        action="store_true",
+                        action='store_true',
                         dest='run_test',
                         default=False,
                         help='setup host for launch tests')
+    parser.add_argument('-o',
+                        '--obtain',
+                        action='store_true',
+                        dest='create_worker',
+                        default=False,
+                        help='Provides an opportunity to create Worker node contract')
     parser.add_argument('-v ',
                         '--version',
                         action='version',
@@ -194,11 +233,36 @@ def main(argv):
             logging.error(ex.args)
             return
     print("Config reading success")
-
     manager = Manager.get_instance()
+
+    # -------------------------------------
+    # create worker node contract
+    # -------------------------------------
+    if results.create_worker:
+        manager.pynode_config_file_path = results.configuration_file
+        manager.eth_host = eth_host
+        manager.eth_abi_path = results.abi_path
+        manager.eth_pandora = pandora_address
+
+        print('Pynode start to obtain new Worker node contract')
+        print("Ethereum use                 : " + str(results.ethereum_use))
+        print("Ethereum host                : " + str(eth_host))
+        print("Primary contracts addresses")
+        print("Pandora main contract        : " + str(pandora_address))
+        # inst contracts
+        instantiate_contracts(results, eth_hooks)
+        print("ABI initialize success")
+        # launch worker node creation
+        run_worker_creation()
+        return
+
+    # -------------------------------------
+    # tests launcher
+    # -------------------------------------
     if results.run_test:
         # setup default test host
         test_host = 'http://localhost:4000'
+        manager.pynode_config_file_path = results.configuration_file
         manager.launch_mode = 1
         manager.eth_use = results.ethereum_use
         manager.eth_host = test_host
@@ -228,12 +292,16 @@ def main(argv):
         print("Launch tests")
         run_tests()
 
+    # -------------------------------------
+    # launch pynode
+    # -------------------------------------
     else:
         if results.worker_node:
             worker_contract_address = results.worker_node
         else:
             worker_contract_address = worker_address
 
+        manager.pynode_config_file_path = results.configuration_file
         manager.launch_mode = results.launch_mode
         manager.eth_use = results.ethereum_use
         manager.eth_host = eth_host
@@ -270,6 +338,9 @@ def main(argv):
             run_pynode()
 
 
+# -------------------------------------
+# read and store contracts abi
+# -------------------------------------
 def instantiate_contracts(results, eth_hooks):
     manager = Manager.get_instance()
     if os.path.isdir(results.abi_path):
@@ -301,10 +372,16 @@ def instantiate_contracts(results, eth_hooks):
         return
 
 
+# -------------------------------------
+# main launcher
+# -------------------------------------
 if __name__ == "__main__":
     main(sys.argv)
 
 
+# -------------------------------------
+# docker configurator
+# -------------------------------------
 def use_env_cfg():
     config_tmp = open('../pynode.tmp.ini', "r")
     config_file = open('../pynode.ini', "w")

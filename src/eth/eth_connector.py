@@ -109,10 +109,22 @@ class EthConnector:
 
         return contract
 
-    def transact(self, name: str, cb: Callable):
+    def get_transaction_receipt(self, tx_hash: str):
         try:
-            tx = self.contract.transact({'from': self.web3.eth.accounts[0]})
-            cb(tx)
+            return self.web3.eth.getTransactionReceipt(tx_hash)
+        except Exception as ex:
+            self.logger.error('Error reading transaction receipt')
+            self.logger.error(ex.args)
+
+    def transact(self, name: str, cb: Callable, *args):
+        try:
+            # in current time on worker node creation we need possibility to change
+            # customer address for witch new Worker Node contract will be created
+            if args[0] is None:
+                tx = self.contract.transact({'from': self.web3.eth.accounts[0]})
+            else:
+                tx = self.contract.transact({'from': args[0]})
+            return cb(tx)
         except Exception as ex:
             self.logger.error("Error executing %s transaction: %s", name, type(ex))
             self.logger.error(ex.args)
