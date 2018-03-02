@@ -17,7 +17,7 @@ class TestInitWorkerContract(unittest.TestCase):
         cls.manager.run_test_listener(demon=True)
 
     def test_wrong_worker_contract_address(self):
-        self.assertRaises(WrongContractAddressOrABI, lambda: self.manager.run_test_pynode())
+        self.assertRaises(WrongContractAddressOrABI, self.manager.run_test_pynode())
 
     @classmethod
     def tearDownClass(cls):

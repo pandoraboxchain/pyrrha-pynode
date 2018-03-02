@@ -17,7 +17,7 @@ class TestEthNotInSyncStartup(unittest.TestCase):
         cls.manager.run_test_listener(demon=True)
 
     def test_eth_not_in_sync_exception(self):
-        self.assertRaises(EthIsNotInSyncException, lambda: self.manager.run_test_pynode())
+        self.assertRaises(EthIsNotInSyncException, self.manager.run_test_pynode())
 
     @classmethod
     def tearDownClass(cls):

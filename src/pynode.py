@@ -6,7 +6,6 @@ import sys
 import os
 
 from configparser import ConfigParser
-from threading import Barrier
 
 from broker import Broker
 from manager import Manager
@@ -73,7 +72,7 @@ def run_tests():
 
 
 def main(argv):
-    help = """
+    help_message = """
         Pandora Boxchain python node realisation    
         
                 -/////////+++++/`                
@@ -138,7 +137,7 @@ def main(argv):
                       
     """
 
-    parser = argparse.ArgumentParser(description=help, formatter_class=argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(description=help_message, formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-m',
                         '--mode',

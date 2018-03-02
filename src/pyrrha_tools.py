@@ -3,7 +3,7 @@
 import sys
 import getopt
 
-HELPSTRING = '''Set of pyrrha network worker node useful tools
+HELP_STRING = '''Set of pyrrha network worker node useful tools
 
 Usage:
 $ pyrrha-tools command
@@ -18,7 +18,7 @@ decrypt-account -f <account_file>
 
 
 def halt(code: int = 2):
-    print(HELPSTRING)
+    print(HELP_STRING)
     sys.exit(code)
 
 
@@ -41,6 +41,7 @@ def main(argv):
 
     try:
         command, argv = argv[1], argv[2:]
+        # commented while unused
         opts, args = getopt.getopt(argv, "hf:", ["file="])
     except Exception:
         return halt()

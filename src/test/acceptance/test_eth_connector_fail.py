@@ -9,7 +9,7 @@ class TestEthConnectionException(unittest.TestCase):
     def test_eth_unable_to_connect(self):
         self.manager = TestManager()
         print('============================================================================ test_eth_unable_to_connect')
-        self.assertRaises(EthConnectionException, lambda: self.manager.run_test_pynode())
+        self.assertRaises(EthConnectionException, self.manager.run_test_pynode())
 
     @classmethod
     def tearDownClass(cls):

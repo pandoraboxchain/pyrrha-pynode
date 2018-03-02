@@ -158,7 +158,7 @@ class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, Proces
             return self.processors[processor_id]
 
         # prepare processor for calculating data
-        processor = Processor(id=processor_id,
+        processor = Processor(processor_id=processor_id,
                               ipfs_server=self.ipfs_server,
                               ipfs_port=self.ipfs_port,
                               abi_path=self.abi_path,

@@ -18,7 +18,7 @@ class Entity(EthConnector):
         try:
             ipfs_address = self.contract.call().ipfsAddress()
         except Exception as ex:
-            self.logger.error("Exception initializing entity contract", type(ex))
+            self.logger.error("Exception initializing entity contract")
             self.logger.error(ex.args)
             return False
 

@@ -5,14 +5,13 @@ from eth.eth_connector import EthConnector
 from patterns.pynode_logger import LogSocketHandler
 from manager import Manager
 from configparser import ConfigParser
-"""
-Class tool for ask Pandora to create new Worker contract and obtain 
- new created worker contract address
-"""
 
 
 class WorkerMaker:
-
+    """
+    Class tool for ask Pandora to create new Worker contract and obtain
+     new created worker contract address
+    """
     obtaining_flag = False
 
     def __init__(self, eth_server: str, abi_path: str, pandora: str):

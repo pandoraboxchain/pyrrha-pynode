@@ -41,7 +41,7 @@ class ProcessorDelegate(metaclass=ABCMeta):
 
 class Processor(Thread):
 
-    def __init__(self, id: str, ipfs_server: str, ipfs_port: int,
+    def __init__(self, processor_id: str, ipfs_server: str, ipfs_port: int,
                  data_dir: str, abi_path: str, delegate: ProcessorDelegate):
 
         super().__init__()
@@ -52,7 +52,7 @@ class Processor(Thread):
         self.manager = Manager.get_instance()
 
         # Configuring
-        self.id = id
+        self.id = processor_id
         self.data_dir = data_dir
         self.abi_path = abi_path
         self.results_file = None

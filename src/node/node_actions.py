@@ -12,7 +12,6 @@ class NodeActions(StatefulContract):
 
     def transact_alive(self):
         self.logger.info('Sending alive status')
-        pass
 
     def transact_accept_assignment(self):
         self.logger.info('Accepting assignment')

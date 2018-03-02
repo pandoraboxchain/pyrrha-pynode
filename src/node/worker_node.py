@@ -5,7 +5,7 @@ from .node_actions import *
 
 class WorkerNodeDelegate(metaclass=ABCMeta):
     @abstractmethod
-    def create_cognitive_job(self, address: str):
+    def create_cognitive_job(self, job_address: str):
         pass
 
     @abstractmethod

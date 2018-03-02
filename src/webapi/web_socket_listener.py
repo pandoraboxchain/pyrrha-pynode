@@ -1,10 +1,10 @@
 import socket
 import threading
+import webapi
 
 from logging import LogRecord
 from socket import *
 from webapi.web_api_models import *
-from webapi.web_socket_handler import *
 
 
 class WebSocket(threading.Thread):

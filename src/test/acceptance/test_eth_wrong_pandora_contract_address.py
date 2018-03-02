@@ -16,7 +16,7 @@ class TestInitPandoraContract(unittest.TestCase):
         cls.manager.run_test_listener(demon=True)
 
     def test_wrong_pandora_contract_addresses(self):
-        self.assertRaises(WrongContractAddressOrABI, lambda: self.manager.run_test_pynode())
+        self.assertRaises(WrongContractAddressOrABI, self.manager.run_test_pynode())
 
     @classmethod
     def tearDownClass(cls):
