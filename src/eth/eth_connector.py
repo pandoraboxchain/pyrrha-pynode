@@ -120,10 +120,10 @@ class EthConnector:
         try:
             # in current time on worker node creation we need possibility to change
             # customer address for witch new Worker Node contract will be created
-            if args[0] is None:
-                tx = self.contract.transact({'from': self.web3.eth.accounts[0]})
-            else:
+            if args:
                 tx = self.contract.transact({'from': args[0]})
+            else:
+                tx = self.contract.transact({'from': self.web3.eth.accounts[0]})
             return cb(tx)
         except Exception as ex:
             self.logger.error("Error executing %s transaction: %s", name, type(ex))

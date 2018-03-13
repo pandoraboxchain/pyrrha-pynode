@@ -109,10 +109,10 @@ class Manager:
         self.on_property_value_change()
 
     def set_complete_reset(self):
-        self.job_contract_address('')
-        self.job_contract_state('')
-        self.kernel_ipfs_address('')
-        self.dataset_ipfs_address('')
+        self.job_contract_address = ''
+        self.job_contract_state = ''
+        self.job_kernel_ipfs_address = ''
+        self.job_dataset_ipfs_address = ''
         self.on_property_value_change()
 
 # ----------------------------------

@@ -4,6 +4,8 @@ import webapi
 
 from logging import LogRecord
 from socket import *
+
+from webapi import web_socket_handler
 from webapi.web_api_models import *
 
 
@@ -37,7 +39,7 @@ class WebSocket(threading.Thread):
             self.tcp_socket_address = (str(socket_host), int(socket_port))
             self.tcp_socket_connections = int(socket_clients)
             # init request core handler
-            self.tcp_socket_handler = webapi.web_socket_handler.WebSocketHandler(self)
+            self.tcp_socket_handler = web_socket_handler.WebSocketHandler(self)
             self.tcp_socket = socket(AF_INET, SOCK_STREAM)
             self.tcp_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
             self.tcp_socket.bind(self.tcp_socket_address)
