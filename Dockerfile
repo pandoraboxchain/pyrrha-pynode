@@ -3,7 +3,7 @@ FROM python:3.6
 
 # Copy the current directory contents into the container at /app
 COPY ./abi /abi
-COPY ./src /src
+COPY pynode /src
 COPY ./pynode.ini /pynode.tmp.ini
 COPY ./requirements.txt /requirements.txt
 
