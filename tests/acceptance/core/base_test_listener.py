@@ -1,11 +1,11 @@
 import threading
+
 from abc import ABCMeta, abstractmethod
 from jsonrpc import dispatcher
 from jsonrpc.manager import JSONRPCResponseManager
 from werkzeug.wrappers import Request, Response
 from wsgiref.simple_server import make_server
-
-from test.core.base_test_core import BaseCoreConfiguration
+from tests.acceptance.core.base_test_core import BaseCoreConfiguration
 
 
 class BaseTestListener(threading.Thread):

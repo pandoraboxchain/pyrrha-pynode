@@ -1,12 +1,15 @@
 import sys
 import logging
 
+from threading import Thread
+from typing import Union
 from manager import Manager
+from eth.eth_connector import EthConnector
+from patterns.singleton import Singleton
+from node.worker_node import WorkerNode, WorkerNodeDelegate
+from job.cognitive_job import CognitiveJob, CognitiveJobDelegate
+from processor.processor import Processor, ProcessorDelegate
 from patterns.pynode_logger import LogSocketHandler
-from patterns.singleton import *
-from node.worker_node import *
-from job.cognitive_job import *
-from processor.processor import *
 
 
 class Broker(Singleton, Thread, WorkerNodeDelegate, CognitiveJobDelegate, ProcessorDelegate):
