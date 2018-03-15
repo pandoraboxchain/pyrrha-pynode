@@ -9,6 +9,7 @@ from patterns.exceptions import EthConnectionException, \
                                 EthIsNotInSyncException, \
                                 CriticalTransactionError, \
                                 NotInitialized, \
+                                ErrorContractGettingException, \
                                 WrongContractAddressOrABI
 
 
@@ -74,8 +75,20 @@ class EthConnector:
     def init_contract(self) -> bool:
         if self.web3 is None:
             raise NotInitialized("Web 3 is not initialized, unable to connect")
+
         try:
-            self.contract = self.contract_at(self.address)
+            self.contract = self.web3.eth.contract(address=self.address, abi=self.abi_file)
+        except Exception as ex:
+            self.logger.error('Error getting contract: %s', type(ex))
+            self.logger.error(ex.args)
+            if self.mode == 1:
+                raise ErrorContractGettingException('Error getting contract: %s', type(ex))
+            return False
+
+        Manager.get_instance().set_worker_contract_state('Initialized')
+        self.logger.info('Connector %s ABI instantiated', self.address)
+
+        try:
             self.owner = self.contract.call().owner()
         except Exception as ex:
             self.logger.error('Wrong contract address or ABI, got exception %s', type(ex))
@@ -94,19 +107,18 @@ class EthConnector:
         self.event_filter.start()
         self.event_filter.watch(callback)
 
-    def contract_at(self, address: str):
-        if self.web3 is None:
-            raise NotInitialized()
-        try:
-            contract = self.web3.eth.contract(address=address, abi=self.abi_file)
-        except Exception as ex:
-            self.logger.error('Error getting contract: %s', type(ex))
-            self.logger.error(ex.args)
-            return None
-        Manager.get_instance().set_worker_contract_state('Initialized')
-        self.logger.info('Connector %s ABI instantiated', address)
-
-        return contract
+#    def contract_at(self, address: str):
+#        if self.web3 is None:
+#            raise NotInitialized("Web 3 is not initialized, unable to connect")
+#        try:
+#            contract = self.web3.eth.contract(address=address, abi=self.abi_file)
+#        except Exception as ex:
+#            self.logger.error('Error getting contract: %s', type(ex))
+#            self.logger.error(ex.args)
+#            return None
+#        Manager.get_instance().set_worker_contract_state('Initialized')
+#        self.logger.info('Connector %s ABI instantiated', address)
+#        return contract
 
     def get_transaction_receipt(self, tx_hash: str):
         try:

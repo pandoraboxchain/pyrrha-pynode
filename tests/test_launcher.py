@@ -7,8 +7,8 @@ import unittest
 
 from manager import Manager
 from broker import Broker
-from tests.acceptance.core.base_test_core import BaseCoreConfiguration
-from tests.acceptance.core.base_test_listener import BaseTestListener
+from tests.core.base_test_core import BaseCoreConfiguration
+from tests.core.base_test_listener import BaseTestListener
 from configparser import ConfigParser
 
 logging.basicConfig(level=logging.INFO,
@@ -57,6 +57,10 @@ class TestManager:
             self.test_listener_thread.daemon = True
         self.test_listener_thread.start()
         print('Listener started in demon mode  : ' + str(demon))
+
+    def stop_test_listener(self):
+        self.test_listener.stop()
+        self.test_listener_thread.join()
 
     @staticmethod
     def run_test_pynode(*config_file) -> int:

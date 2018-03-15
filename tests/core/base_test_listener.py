@@ -5,7 +5,7 @@ from jsonrpc import dispatcher
 from jsonrpc.manager import JSONRPCResponseManager
 from werkzeug.wrappers import Request, Response
 from wsgiref.simple_server import make_server
-from tests.acceptance.core.base_test_core import BaseCoreConfiguration
+from tests.core.base_test_core import BaseCoreConfiguration
 
 
 class BaseTestListener(threading.Thread):

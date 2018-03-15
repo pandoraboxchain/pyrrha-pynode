@@ -25,6 +25,11 @@ class EthIsNotInSyncException(Exception):
     pass
 
 
+# throws while eth connector try to obtain contract from blockchain
+class ErrorContractGettingException(Exception):
+    pass
+
+
 # throws while unable init contracts
 class WrongContractAddressOrABI(Exception):
     pass
