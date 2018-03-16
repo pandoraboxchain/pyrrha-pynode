@@ -1,4 +1,5 @@
 import logging
+import h5py
 
 from abc import ABCMeta, abstractmethod
 from threading import Thread

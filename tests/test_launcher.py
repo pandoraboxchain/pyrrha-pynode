@@ -50,7 +50,7 @@ class TestManager:
 
     def run_test_listener(self, demon: bool = False):
         # run test listener in new daemon thread
-        print("Launch mok eth listener on host : " + self.host)
+        print("Launch mok eth_connector listener on host : " + self.host)
         self.test_listener = BaseTestListener(host=self.host, configuration=self.test_core_configuration)
         self.test_listener_thread = threading.Thread(target=self.test_listener.launch)
         if demon:

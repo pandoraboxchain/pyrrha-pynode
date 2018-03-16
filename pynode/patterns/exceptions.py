@@ -15,17 +15,17 @@ class NotInitialized(Exception):
     pass
 
 
-# throws while pynode unable to connect configured eth address
+# throws while pynode unable to connect configured eth_connector address
 class EthConnectionException(Exception):
     pass
 
 
-# throws while eth node is currently not in sync
+# throws while eth_connector node is currently not in sync
 class EthIsNotInSyncException(Exception):
     pass
 
 
-# throws while eth connector try to obtain contract from blockchain
+# throws while eth_connector connector try to obtain contract from blockchain
 class ErrorContractGettingException(Exception):
     pass
 

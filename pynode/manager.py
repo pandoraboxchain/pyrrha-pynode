@@ -12,7 +12,7 @@ class Manager:
     # pynode global
     pynode_start_on_launch = None
     pynode_config_file_path = None
-    # base global eth settings for fast access from any module
+    # base global eth_connector settings for fast access from any module
     eth_use = None
     eth_host = None
     eth_abi_path = None

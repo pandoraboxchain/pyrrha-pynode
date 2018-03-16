@@ -95,13 +95,13 @@ def main(argv):
         example >python ./pynode.py - starts pynode with default config 
                                       placed in pynode.ini file 
                                       and use SOFT launch mode 
-                                             'ganache' eth instance 
+                                             'ganache' eth_connector instance 
                                              'local' config for ipfs 
 
         if we need launch with different ETH HOST and IPFS config use launch params
         example >python ./pynode.py -e (--etherum) remote -i (--ipfs) infura
                     - starts pynoode in SOFT mode
-                    with eth instance to connect remote  = http://bitcoin.pandora.network:4444
+                    with eth_connector instance to connect remote  = http://bitcoin.pandora.network:4444
                     and IPFS infura config server = https://ipfs.infura.io
                                            port = 5001
 

@@ -30,6 +30,9 @@ class EthConnector:
     server = None
     mode = None
 
+    address = None
+    abi_file = None
+
     def __init__(self, address: str, contract):
         # Initializing logger object
         self.logger = logging.getLogger("EthConnector")
@@ -54,7 +57,7 @@ class EthConnector:
         EthConnector.logger.info('Connecting Ethereum node on %s...', EthConnector.server)
         try:
             EthConnector.web3 = Web3(HTTPProvider(EthConnector.server))
-            info = EthConnector.web3.eth.syncing
+            info = EthConnector.call_eth_syncing()
         except Exception as ex:
             EthConnector.logger.error('Error connecting Ethereum node: %s', type(ex))
             EthConnector.logger.error(ex.args)
@@ -75,26 +78,19 @@ class EthConnector:
     def init_contract(self) -> bool:
         if self.web3 is None:
             raise NotInitialized("Web 3 is not initialized, unable to connect")
-
         try:
-            self.contract = self.web3.eth.contract(address=self.address, abi=self.abi_file)
-        except Exception as ex:
-            self.logger.error('Error getting contract: %s', type(ex))
-            self.logger.error(ex.args)
-            if self.mode == 1:
-                raise ErrorContractGettingException('Error getting contract: %s', type(ex))
-            return False
-
-        Manager.get_instance().set_worker_contract_state('Initialized')
-        self.logger.info('Connector %s ABI instantiated', self.address)
-
-        try:
-            self.owner = self.contract.call().owner()
+            self.contract = self.call_eth_contract(self.address, self.abi_file)
+            Manager.get_instance().set_worker_contract_state('Initialized')
+            self.logger.info('Connector %s ABI instantiated', self.address)
+            self.owner = self.call_eth_owner() #.contract.call().owner()
         except Exception as ex:
             self.logger.error('Wrong contract address or ABI, got exception %s', type(ex))
             self.logger.error(ex.args)
             if self.mode == 1:
-                raise WrongContractAddressOrABI('Wrong contract address or ABI', ex)
+                if ex.__class__ is ValueError:
+                    raise ErrorContractGettingException('Error getting contract: %s', type(ex))
+                else:
+                    raise WrongContractAddressOrABI('Wrong contract address or ABI', ex)
             return False
 
         return True
@@ -106,19 +102,6 @@ class EthConnector:
         self.event_filter = self.contract.on(event)
         self.event_filter.start()
         self.event_filter.watch(callback)
-
-#    def contract_at(self, address: str):
-#        if self.web3 is None:
-#            raise NotInitialized("Web 3 is not initialized, unable to connect")
-#        try:
-#            contract = self.web3.eth.contract(address=address, abi=self.abi_file)
-#        except Exception as ex:
-#            self.logger.error('Error getting contract: %s', type(ex))
-#            self.logger.error(ex.args)
-#            return None
-#        Manager.get_instance().set_worker_contract_state('Initialized')
-#        self.logger.info('Connector %s ABI instantiated', address)
-#        return contract
 
     def get_transaction_receipt(self, tx_hash: str):
         try:
@@ -140,3 +123,25 @@ class EthConnector:
             self.logger.error("Error executing %s transaction: %s", name, type(ex))
             self.logger.error(ex.args)
             raise CriticalTransactionError(name)
+
+
+# -------------------------
+# ETH methods facade
+# used for mock creation on unit tests
+# -------------------------
+    @staticmethod
+    def call_eth_syncing():
+        return EthConnector.web3.eth.syncing
+
+    def call_eth_contract(self, address, abi_file):
+        # As it turned out, the initialization of the contract only verifies the address to be plausible
+        return self.web3.eth.contract(address=address, abi=abi_file)
+
+    def call_eth_owner(self):
+        return self.contract.call().owner()
+
+    def call_eth_receipt(self, tx_hash):
+        return self.web3.eth.getTransactionReceipt(tx_hash)
+
+    def call_eth_transact(self, cb: Callable):
+        pass
