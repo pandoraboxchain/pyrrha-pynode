@@ -161,12 +161,18 @@ def instantiate_contracts(abi_path, eth_hooks):
 
 def launch_moc_service(*args):
     TestManager('../pynode.ini')
-    loader = unittest.TestLoader()
+    loader_unit = unittest.TestLoader()
+    loader_acceptance = unittest.TestLoader()
+    # acceptance unit launcher
+    start_dir = 'unit'
+    suite_unit = loader_unit.discover(start_dir)
+    runner = unittest.TextTestRunner(failfast=True)
+    runner.run(suite_unit)
     # acceptance test launcher
     start_dir = 'acceptance'
-    suite = loader.discover(start_dir)
+    suite_acceptance = loader_acceptance.discover(start_dir)
     runner = unittest.TextTestRunner(failfast=True)
-    runner.run(suite)
+    runner.run(suite_acceptance)
 
 
 if __name__ == "__main__":
