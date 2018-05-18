@@ -1,0 +1,10 @@
+version: "2"
+services:
+
+  pyrrha_pynode:
+    container_name: "pyrrha_pynode_v_0.1.0-alpha"
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    network_mode: "host"   
+    

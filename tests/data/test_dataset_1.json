@@ -1,0 +1,14 @@
+{
+	"train": {
+		"train_x":"QmQNWiv1s7rhoUrfELCtK65VZGbTE79Bfa3kkoeFf7aVQA",
+		"train_y":"QmT3keTG7fXrPRZApjwVWvZDamLC5LeyvQLou4rSJLJJEj",
+		"loss":"categorical_crossentropy",
+		"optimizer":"adam",
+		"batch_size":128,
+		"epochs":10,
+		"validation_split":0.1,
+		"shuffle":"False",
+		"initial_epoch":0
+	},
+	"batches": [""]
+}
