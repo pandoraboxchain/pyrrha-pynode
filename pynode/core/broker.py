@@ -377,7 +377,6 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                     receipt = self.eth.get_transaction_receipt(transaction_result)
                 except Exception:
                     self.logger('Try get receipt request attempt left : ' + str(requests_count))
-                    pass
                 if receipt is not None or requests_count == 0:
                     receipt_flag = True
                 time.sleep(5)
