@@ -1,10 +1,11 @@
 language: python
 python:
-  - "3.5"
   - "3.6"
 # command to install dependencies
 install:
   - pip install -r requirements.txt
+  - pip install .          # install root pynode
+  - pip install ./pynode/. # install core submodule
 # command to run tests
 script:
-  - /tests/test_launcher.py
+  - python tests/launcher_test.py
