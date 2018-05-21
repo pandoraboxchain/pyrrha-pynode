@@ -1,4 +1,4 @@
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/28f81b66601844dc85362d0e50b7e000)](https://app.codacy.com/app/SteelStrider/pyrrha-pynode?utm_source=github.com&utm_medium=referral&utm_content=pandoraboxchain/pyrrha-pynode&utm_campaign=badger)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/a1b8a914ff5f48de9f15f944391b51a1)](https://www.codacy.com/app/dr-orlovsky/pyrrha-pynode?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=pandoraboxchain/pyrrha-pynode&amp;utm_campaign=Badge_Grade)
 [![Build Status](https://travis-ci.org/pandoraboxchain/pyrrha-pynode.svg?branch=master)](https://travis-ci.org/pandoraboxchain/pyrrha-pynode)
 # Pyrrha Python Node
 

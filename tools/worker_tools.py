@@ -176,9 +176,7 @@ def import_account(connector, account_private_key, password) -> bool:
     try:
         result = connector.personal.importRawKey(account_private_key, password)
     except Exception:
-        # if account already imported, method throws the error
-        # pass it silently
-        pass
+        print('Account already imported. Continue operation.')
     return result
 
 
