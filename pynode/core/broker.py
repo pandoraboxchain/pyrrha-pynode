@@ -173,7 +173,6 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         except Exception as ex:
             # silently drop exception if account already imported
             print(ex.args)
-            pass
         return True
 
     def unlock_worker_account(self, password) -> bool:

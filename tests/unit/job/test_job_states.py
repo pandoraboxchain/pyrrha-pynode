@@ -1,6 +1,4 @@
 import unittest
-import sys
-import os
 
 from typing import Callable
 from pynode.core.job.cognitive_job import CognitiveJob, CognitiveJobDelegate
@@ -34,7 +32,7 @@ class TestJob(unittest.TestCase, CognitiveJobDelegate):
         cognitive_job.state = 0
         try:
             cognitive_job.state = 1
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert cognitive_job.state == 1
 

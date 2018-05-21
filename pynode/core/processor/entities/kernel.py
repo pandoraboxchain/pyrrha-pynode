@@ -37,14 +37,14 @@ class Kernel:
         # validate values by string type
         # ------------------------------
         # model address is necessary
-        if type(self.model_address) is not str:
+        if not isinstance(self.model_address, str):
             self.logger.error("Wrong model address type : " + str(type(self.model_address)))
             self.model_address = None
             self.weights_address = None
             return False
         # weights is not necessary and may be empty
         if self.weights_address is not None:
-            if type(self.weights_address) is not str:
+            if not isinstance(self.weights_address, str):
                 self.logger.error("Wrong weights address type : " + str(type(self.weights_address)))
                 self.weights_address = None
                 return False

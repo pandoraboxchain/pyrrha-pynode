@@ -44,7 +44,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 0
         try:
             worker_node.state = 1
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 1
         # callback flags
@@ -58,7 +58,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 0
         try:
             worker_node.state = 2
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 2
 
@@ -130,7 +130,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 0
         try:
             worker_node.state = 8
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 8
 
@@ -184,7 +184,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 1
         try:
             worker_node.state = 2
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 2
         # transact ALIVE
@@ -310,7 +310,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 2
         try:
             worker_node.state = 1
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 1
 
@@ -337,7 +337,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 2
         try:
             worker_node.state = 3
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 3
         # CREATE COGNITIVE JOB CALLBACK
@@ -411,7 +411,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 2
         try:
             worker_node.state = 9
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 9
 
@@ -440,7 +440,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 3
         try:
             worker_node.state = 1
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 1
 
@@ -483,7 +483,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 3
         try:
             worker_node.state = 4
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 4
         # validate callbacks called
@@ -586,7 +586,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 4
         try:
             worker_node.state = 1
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 1
 
@@ -602,7 +602,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 4
         try:
             worker_node.state = 2
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 2
 
@@ -649,7 +649,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 4
         try:
             worker_node.state = 5
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 5
         # validate callbacks
@@ -711,7 +711,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 4
         try:
             worker_node.state = 9
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 9
         # validate callbacks called
@@ -743,7 +743,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 5
         try:
             worker_node.state = 1
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 1
         # validate callbacks called
@@ -759,7 +759,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 5
         try:
             worker_node.state = 2
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 2
         # validate callbacks called
@@ -819,7 +819,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 5
         try:
             worker_node.state = 6
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 6
         # validate callbacks called
@@ -865,7 +865,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 5
         try:
             worker_node.state = 9
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 9
         # validate callbacks called
@@ -896,7 +896,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 6
         try:
             worker_node.state = 1
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 1
         # validate callbacks called
@@ -910,7 +910,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 6
         try:
             worker_node.state = 2
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 2
         # validate callbacks called
@@ -980,7 +980,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 6
         try:
             worker_node.state = 7
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 7
         # validate callbacks called
@@ -1009,7 +1009,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 6
         try:
             worker_node.state = 9
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 9
         # validate callbacks called
@@ -1039,7 +1039,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 7
         try:
             worker_node.state = 1
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 1
         # validate callbacks called
@@ -1054,7 +1054,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 7
         try:
             worker_node.state = 2
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 2
         # validate callbacks called
@@ -1152,7 +1152,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 5
         try:
             worker_node.state = 9
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 9
         # validate callbacks called
@@ -1181,7 +1181,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 8
         try:
             worker_node.state = 1
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 1
         # validate callbacks called
@@ -1195,7 +1195,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 8
         try:
             worker_node.state = 2
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 2
 
@@ -1305,7 +1305,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 9
         try:
             worker_node.state = 1
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 1
         # validate callbacks called
@@ -1319,7 +1319,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 9
         try:
             worker_node.state = 2
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 2
 
@@ -1391,7 +1391,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
         worker_node.state = 9
         try:
             worker_node.state = 8
-        except StateTransitionError as ex:
+        except StateTransitionError:
             pass
         assert worker_node.state == 8
 

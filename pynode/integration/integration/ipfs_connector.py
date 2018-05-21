@@ -16,7 +16,7 @@ class IpfsConnector(IpfsAbstract):
 
     logger = logging.getLogger("IpfsConnector")
 
-    def connect(self, server, port, data_dir):
+    def connect(self, server='localhost', port=5001, data_dir='../tmp'):
         self.connector = ipfsapi.connect(server, port)
         if data_dir not in os.getcwd():
             os.chdir(data_dir)

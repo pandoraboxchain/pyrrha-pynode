@@ -4,15 +4,15 @@ from abc import ABCMeta, abstractmethod
 class IpfsAbstract(metaclass=ABCMeta):
 
     @abstractmethod
-    def connect(self):
+    def connect(self, server='localhost', port=5001, data_dir='../tmp'):
         pass
 
     @abstractmethod
-    def download_file(self):
+    def download_file(self, file_address: str):
         pass
 
     @abstractmethod
-    def upload_file(self):
+    def upload_file(self, file_name: str):
         pass
 
 

@@ -82,7 +82,6 @@ class Processor(Thread):
     def __load(self) -> bool:
         # load data sets for computing
         try:
-            test = os.getcwd()
             # reading kernel data
             self.kernel.read_model()
             # prepare data for prediction or training

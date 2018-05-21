@@ -4,11 +4,9 @@ from core.manager import Manager
 from service.webapi.web_api_models import PynodeSettings, PynodeStatus
 
 
-"""
-Base handler for web socket API
-request signature {"method":"get_status"}
-for response we use class json serialization
-"""
+# Base handler for web socket API
+# request signature {"method":"get_status"}
+# for response we use class json serialization
 
 
 class WebSocketHandler:

@@ -1,4 +1,3 @@
-import os
 import h5py
 import logging
 import numpy as np
