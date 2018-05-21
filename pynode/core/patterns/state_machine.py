@@ -63,9 +63,9 @@ class StateMachine:
                     # TODO strange call for change state after job complete (eth filter glitch)
                     # uncomment for test launch
                     raise StateTransitionError(from_state=from_state, to_state=to_state)
-                    logging.error("Unregistered state transition from %s to %s",
-                                    self.state_table[from_state].name, self.state_table[to_state].name)
-                    return
+                    # logging.error("Unregistered state transition from %s to %s",
+                    #                self.state_table[from_state].name, self.state_table[to_state].name)
+                    # return
                 else:
                     logging.warning("Unregistered state transition from %s to %s",
                                     self.state_table[from_state].name, self.state_table[to_state].name)

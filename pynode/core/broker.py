@@ -2,7 +2,6 @@ import sys
 import logging
 import json
 import time
-import os
 
 from threading import Thread
 from typing import Union, Callable
@@ -376,7 +375,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             while receipt_flag is not True:
                 try:
                     receipt = self.eth.get_transaction_receipt(transaction_result)
-                except Exception as ex:
+                except Exception:
                     pass
                 if receipt is not None or requests_count == 0:
                     receipt_flag = True
