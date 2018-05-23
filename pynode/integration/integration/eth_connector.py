@@ -2,6 +2,7 @@ import logging
 from typing import Callable
 from integration.eth_service import EthAbstract
 from web3 import Web3, HTTPProvider
+from web3.middleware import geth_poa_middleware
 from core.patterns.exceptions import EthConnectionException, EthIsNotInSyncException
 
 
@@ -12,6 +13,8 @@ class EthConnector(EthAbstract):
     def init_contract(self, server_address: str, contract_address: str, contract_abi: str):
         self.logger.info("Init eth connection...")
         EthConnector.web3 = Web3(HTTPProvider(server_address))
+        # insert PoA(for example rinkeby) integration and check version
+        EthConnector.web3.middleware_stack.inject(geth_poa_middleware, layer=0)
         try:
             info = EthConnector.web3.eth.syncing
         except Exception as ex:
@@ -19,7 +22,8 @@ class EthConnector(EthAbstract):
 
         if info is not False:
             raise EthIsNotInSyncException('Ethereum node is not in synch', info)
-        contract = EthConnector.web3.eth.contract(address=contract_address, abi=contract_abi)
+        contract = EthConnector.web3.eth.contract(address=EthConnector.web3.toChecksumAddress(contract_address),
+                                                  abi=contract_abi)
         return contract
 
     def bind_event(self, contract, event: str, callback: Callable[[object], None]):

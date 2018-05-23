@@ -2,7 +2,7 @@ version: "2"
 services:
 
   pyrrha_pynode:
-    container_name: "pyrrha_pynode_v_0.1.0-alpha"
+    container_name: "pyrrha_pynode_v_0.1.1"
     build:
       context: .
       dockerfile: ./Dockerfile

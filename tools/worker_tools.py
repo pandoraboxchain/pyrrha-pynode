@@ -3,16 +3,18 @@ import os
 import argparse
 import json
 import time
+import base64
+from base64 import b64encode
 
 from configparser import ConfigParser
 from web3 import Web3, HTTPProvider
-from typing import Callable
+from web3.middleware import geth_poa_middleware
 
 from pathlib import Path
 from hashlib import md5
-from base64 import b64encode
 from Crypto import Random
 from Crypto.Cipher import AES
+from threading import Thread
 
 
 # -------------------------------------------------
@@ -26,6 +28,7 @@ class MainModel:
     remove_flag = False
 
     new_worker_account = None
+    new_worker_account_vault_pass = None
     new_worker_account_p_key = None
     obtaining_flag = False
 # -------------------------------------------------
@@ -37,6 +40,8 @@ class MainModel:
 def process_create_worker_contract():
     # init connection and pandora contract
     connector = Web3(HTTPProvider(MainModel.eth_host))
+    # insert PoA(for example rinkeby) integration and check version
+    connector.middleware_stack.inject(geth_poa_middleware, layer=0)
     try:
         synk_info = connector.eth.syncing
     except Exception as ex:
@@ -47,68 +52,52 @@ def process_create_worker_contract():
         raise Exception('Eth node in synking mode, try later')
 
     print('Connection success, check provided customer account address')
-    contract = connector.eth.contract(address=MainModel.pandora_contract_address,
+    contract = connector.eth.contract(address=connector.toChecksumAddress(MainModel.pandora_contract_address),
                                       abi=MainModel.pandora_abi)
-    # check currently provided accounts
-    accounts = connector.eth.accounts
-    print('Current accounts list')
-    print(accounts)
-    # check provided account for imported
-    if MainModel.new_worker_account in accounts:
-        # unlock account for create worker contract request
-        local_password = obtain_local_password()
-        unlock_result = unlock_account(connector, MainModel.new_worker_account, local_password)
-        print('Unlock result : ' + str(unlock_result))
-        if unlock_result is False:
-            print('Unable to unlock account. Exiting')
-            return
-        print('Owner account ready for transactions')
-    else:
-        # provide import and unlocking
-        local_password = obtain_local_password()
-        print('Local password obtained, try to unlock account')
-        if unlock_account(connector, MainModel.new_worker_account, local_password):
-            print('Account unlocked success')
-        else:
-            print('Account unlock fail, try to import account and than unlock')
-            if import_account(connector, MainModel.new_worker_account_p_key, local_password):
-                print('Account import success')
-                print('Try to unlock')
-                unlock_result = unlock_account(connector, MainModel.new_worker_account, local_password)
-                print('Unlock result : ' + str(unlock_result))
-            else:
-                print("Owner account unlock fail.")
-                return
-            print('Owner account ready for transactions')
 
     # for provide possibility use current created worker node contract with vault
-    # provide vault recreation before account balance validation
-    vault_result = create_vault(local_password, MainModel.new_worker_account)
+    # provide vault recreation before account balance validate
+    MainModel.new_worker_account_p_key = obtain_private_key()
+    MainModel.new_worker_account_vault_pass = obtain_local_password()
+    vault_result = create_vault(MainModel.new_worker_account_vault_pass,
+                                MainModel.new_worker_account,
+                                MainModel.new_worker_account_p_key)
     if not vault_result:
         print('Unable to create vault.')
         return
 
     account_balance = connector.eth.getBalance(MainModel.new_worker_account)
-    if account_balance < 4000000000000000000:
-        print('For creating worker node account your need to spend 3 ETH and 1 ETH need for management node sates')
+    account_balance_eth = Web3.fromWei(account_balance, 'ether')
+    if account_balance_eth < 0.5:
+        print('For creating worker node account your need to spend 0.005 ETH and 0.5 ETH need for management node sates')
         print('If your currently create worker node contract, you can try start pynode with current configuration')
         print('Unable to create worker contract. Exit.')
         return
 
-    event = contract.on('WorkerNodeCreated')
-    event.start()
-    event.watch(on_worker_node_created)
-    print('Event listener for worker node creation startup success')
+    # for performing test ask not from latest block
+    filter_on_worker = contract.events.WorkerNodeCreated.createFilter(fromBlock='latest')
+    worker = Thread(target=filter_thread_loop, args=(filter_on_worker, 2), daemon=False)
+    worker.start()
+    status = worker.is_alive()
+    print('Event listener for worker node creation startup success, alive : ' + str(status))
 
     if MainModel.remove_flag is False:
         print('Transact for creation worker node contract')
         try:
-            tx_result_hash = transact(contract,
-                                      lambda tx: tx.createWorkerNode(),
-                                      MainModel.new_worker_account)
-            print('transaction details : ' + tx_result_hash)
-            while MainModel.obtaining_flag is False:
-                time.sleep(3)
+            nonce = connector.eth.getTransactionCount(MainModel.new_worker_account)
+            raw_transaction = contract.functions.createWorkerNode() \
+                .buildTransaction({
+                    'from': MainModel.new_worker_account,
+                    'nonce': nonce})
+            signed_transaction = connector.eth.account.signTransaction(raw_transaction,
+                                                                       MainModel.new_worker_account_p_key)
+            MainModel.new_worker_account_p_key = None
+            tx_hash = connector.eth.sendRawTransaction(signed_transaction.rawTransaction)
+            print('TX_HASH : ' + tx_hash.hex())
+            print('Waiting for receipt...')
+            transaction_receipt = connector.eth.waitForTransactionReceipt(tx_hash, timeout=300)  # may take while(5 min)
+            print('TX_RECEIPT : ' + str(transaction_receipt))
+            print('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
         except Exception as ex:
             print('Exception while transact creation worker contract')
             print(ex.args)
@@ -116,16 +105,38 @@ def process_create_worker_contract():
     else:
         print('Transact for destroy worker node contract')
         try:
-            tx_result_hash = transact(contract,
-                                      lambda tx: tx.destroyWorkerNode(),
-                                      MainModel.new_worker_account)
-            print('transaction details : ' + tx_result_hash)
-            while MainModel.obtaining_flag is False:
-                time.sleep(3)
+            nonce = connector.eth.getTransactionCount(MainModel.new_worker_account)
+            raw_transaction = contract.functions.destroyWorkerNode() \
+                .buildTransaction({
+                    'from': MainModel.new_worker_account,
+                    'nonce': nonce})
+            signed_transaction = connector.eth.account.signTransaction(raw_transaction,
+                                                                       MainModel.new_worker_account_p_key)
+            MainModel.new_worker_account_p_key = None
+            tx_hash = connector.eth.sendRawTransaction(signed_transaction.rawTransaction)
+            print('TX_HASH : ' + tx_hash.hex())
+            print('Waiting for receipt...')
+            transaction_receipt = connector.eth.waitForTransactionReceipt(tx_hash, timeout=300)  # may take while(5 min)
+            print('TX_RECEIPT : ' + str(transaction_receipt))
+            print('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
         except Exception as ex:
             print('Exception while transact destroy worker contract')
             print(ex.args)
             return
+    worker.join()
+    exit(0)
+
+
+def filter_thread_loop(event_filter, poll_interval):
+    while True:
+        try:
+            print('.')  # print thread alive (current sleep 2sec)
+            for event in event_filter.get_all_entries():
+                on_worker_node_created(event)
+            time.sleep(poll_interval)
+        except Exception as ex:
+            print('Exception on event handler.')
+            print(ex.args)
 
 
 def on_worker_node_created(event: dict):
@@ -146,17 +157,8 @@ def on_worker_node_created(event: dict):
         print(ex.args)
     print("Address is stored in default config file on Ethereum section")
     print("Please save the address in order to avoid losing it")
-    print("Pynode is configured and ready for launch with default parameters")
+    print("Pynode is configured and ready for launch with default parameters and your vault password")
     MainModel.obtaining_flag = True
-# -------------------------------------------------
-
-
-# -------------------------------------------------
-# Transactional methods
-# -------------------------------------------------
-def transact(contract, cb: Callable, address):
-    tx = contract.transact({'from': address})
-    return cb(tx)
 # -------------------------------------------------
 
 
@@ -171,28 +173,21 @@ def obtain_local_password():
     return customer_vault_password
 
 
-def import_account(connector, account_private_key, password) -> bool:
-    result = True
+def obtain_private_key() -> str:
+    customer_account_private_key = input('Provide worker account owner private key : ')
     try:
-        result = connector.personal.importRawKey(account_private_key, password)
+        base64.decodebytes(customer_account_private_key.encode())
     except Exception:
-        print('Account already imported. Continue operation.')
-    return result
+        print('Incorrect account private key, please try again')
+        obtain_private_key()
+    if base64.decodebytes(customer_account_private_key.encode()) is not '':
+        return customer_account_private_key
+    else:
+        print('Incorrect account private key, please try again')
+        obtain_private_key()
 
 
-def unlock_account(connector, account, password) -> bool:
-    try:
-        unlock = connector.personal.unlockAccount(account=account,
-                                                  passphrase=password,
-                                                  duration=10)  # duration - seconds
-    except Exception as ex:
-        print('Exception while account unlock processing')
-        print(ex.args)
-        return False
-    return unlock
-
-
-def create_vault(local_password: str, new_worker_account: str) -> bool:
+def create_vault(local_password: str, new_worker_account: str, worker_account_private: str) -> bool:
     # recreate password vault
     vault_folder = Path('../pynode/vault')
     if os.path.exists(vault_folder) is False:
@@ -205,8 +200,8 @@ def create_vault(local_password: str, new_worker_account: str) -> bool:
     pad = lambda s: s + (block_size - len(s) % block_size) * chr(block_size - len(s) % block_size)
     # encode and store local password
     try:
-        vault_password = md5(new_worker_account.encode('utf8')).hexdigest()
-        raw = pad(local_password + "_" + MainModel.new_worker_account_p_key).encode('utf8')
+        vault_password = md5(local_password.encode('utf8')).hexdigest()
+        raw = pad(new_worker_account + "_" + worker_account_private).encode('utf8')
         iv = Random.new().read(AES.block_size)
         cipher = AES.new(vault_password.encode('utf8'), AES.MODE_CBC, iv)
         result = b64encode(iv + cipher.encrypt(raw))
@@ -265,23 +260,15 @@ def main(argv):
                 -a (--account) - use this flag for provide worker node account address
                                  (account must be whitelisted for providing this operation,
                                  and must contain about 4ETH on its balance)
-                -p (--private_key) - use this flag to provide worker node account private key
                 -r (--remove) - use this flag to destroy worker node contract for your account
-            example >python ./worker_tools.py -a <owner_account_address> -p <account_private_key>    
+            example >python ./worker_tools.py -a <owner_account_address>
                                   
-            Current tool try to import your account and ask for local password, password for account
-            will be stored in secured vault and will be used on node start. This password is only actual 
-            for pandora ethereum node
+            Current tool try to import your account and ask for local password and account private key,
+            private key will be stored in secured vault and will be used for signing state transactions locally. 
+            This password is only actual for pandora ethereum node current instance, do not forget it).
             
-            NOTE: Current version using private node module for account manipulation that is why you will be
-            asked for private local password on account importing and unlocking. Those password is stores on 
-            pandora ethereum node.
-            
-            WARNING: The current configuration works with private module which is set 
-            when you start your Ethereum node.  
-            To work without this module code improvements and testing are needed!
-            
-            WARNING: Current operation will overwrites your key vault, please back up your vault and pynode 
+            WARNING: Current operation will overwrites your key vault and default config pynode.ini 
+            (worker contract address automatically filled in) please back up your vault and pynode 
             configuration file to prevent data loss
             """
 
@@ -291,14 +278,6 @@ def main(argv):
                         '--account',
                         action="store",
                         dest='new_worker_account',
-                        default='0',
-                        help='provide an account, '
-                             'this account will be whitelisted',
-                        metavar='')
-    parser.add_argument('-p',
-                        '--private_key',
-                        action="store",
-                        dest='worker_account_private_key',
                         default='0',
                         help='provide an account, '
                              'this account will be whitelisted',
@@ -334,9 +313,7 @@ def main(argv):
     print('Action remove               : ' + str(MainModel.remove_flag))
     if results:
         MainModel.new_worker_account = results.new_worker_account
-        MainModel.new_worker_account_p_key = results.worker_account_private_key
         print('Provide worker contract for account : ' + MainModel.new_worker_account)
-        print('With private key                    : ' + MainModel.new_worker_account_p_key)
     else:
         print('Provide account address for creating worker contract (use -a (--account) parameter on tool launch)')
         return

@@ -13,4 +13,4 @@ WORKDIR /pynode
 RUN pip install --trusted-host pypi.python.org -r ../requirements.txt
 
 # Run app.py when the container launches
-CMD ["python",  "./pynode.py", "-c", "core/config/pynode.ini", "-i", "pandora", "-e", "remote", "-a", "../abi/"]
+CMD ["python",  "./pynode.py", "-p","<customer_vault_pass>", "-c", "core/config/pynode.ini", "-i", "pandora", "-e", "remote", "-a", "../abi/"]
