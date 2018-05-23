@@ -9,6 +9,7 @@ class Manager:
 # ----------------------------------
 # Global Pynode settings CANT be changed while pynode is launched
 # ----------------------------------
+    vault_key = None
     # pynode global
     pynode_start_on_launch = None
     pynode_config_file_path = None

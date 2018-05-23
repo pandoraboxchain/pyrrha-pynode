@@ -72,18 +72,17 @@ def main(argv):
         
         Current configuration performs launch with different parameters and configurations
          
-        example >python ./pynode.py - starts pynode with default config 
+        example >python ./pynode.py -p <your vault password>
+                                    - starts pynode with default config 
                                       placed in pynode.ini file 
-                                      and use SOFT launch mode 
-                                             'ganache' eth_connector instance 
-                                             'local' config for ipfs 
+        ATTENTION! - vault password is necessary, and if you use docker and if you use the docker, 
+        enter the password in the startup line in Dockerfile
 
         if we need launch with different ETH HOST and IPFS config use launch params
-        example >python ./pynode.py -e (--ethereum) remote -i (--ipfs) infura
-                    - starts pynoode in SOFT mode
-                    with eth_connector instance to connect remote  = http://bitcoin.pandora.network:4444
-                    and IPFS infura config server = https://ipfs.infura.io
-                                           port = 5001
+        example >python ./pynode.py -e (--ethereum) remote -i (--ipfs) pandora
+                    with eth_connector instance to connect remote  = http://rinkeby.pandora.network:8545
+                    and IPFS config server = http://ipfs.pandora.network
+                                             port = 5001
 
         -c (--config) performs path for custom config file for launch params
         -a (--abi) performs change abi directory path
@@ -95,6 +94,14 @@ def main(argv):
 
     parser = argparse.ArgumentParser(description=help_message, formatter_class=argparse.RawTextHelpFormatter)
 
+    parser.add_argument('-p',
+                        '--password',
+                        action="store",
+                        dest='vault_key',
+                        default='',
+                        help='necessary parameter for launch pynode.'
+                             '(used for encrypt vault and use private key to local transactions sign)',
+                        metavar='')
     parser.add_argument('-c',
                         '--config',
                         action="store",
@@ -115,7 +122,7 @@ def main(argv):
                         '--abi',
                         action='store',
                         dest='abi_path',
-                        default='../abi/',
+                        default='../pyrrha-consensus/build/contracts/',
                         help='setting up path to folder with ABI files '
                              '(default is ../abi/ strongly recommended for use)',
                         metavar='')
@@ -130,7 +137,7 @@ def main(argv):
     parser.add_argument('-v ',
                         '--version',
                         action='version',
-                        version='%(prog)s 0.1.0-alpha')
+                        version='%(prog)s 0.1.1')
 
     results = parser.parse_args()
 
@@ -165,7 +172,10 @@ def main(argv):
             return
     print("Config reading success")
     manager = Manager.get_instance()
-
+    if not results.vault_key:
+        print('Vault key is necessary for launch (use -p key for provide if)')
+        return
+    manager.vault_key = results.vault_key
     # -------------------------------------
     # launch pynode
     # -------------------------------------
@@ -217,7 +227,7 @@ def main(argv):
         WebSocket(socket_host, socket_port, socket_listen)
     # launch pynode
     if pynode_start_on_launch == 'True':
-        print("Launch node")
+        print("Launch pynode...")
         run_pynode()
 
 

@@ -78,6 +78,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         self.ipfs = IpfsService(strategic=IpfsConnector())
 
         self.local_password = None
+        self.key_tool = KeyTools()
         print('Pandora broker initialize success')
 
 
@@ -97,35 +98,23 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             self.logger.info('Worker contract initialized success on address : ' + self.node)
 
             # init worker contract owner account
-            key_tool = KeyTools()
-            if key_tool.check_vault():
+            if self.key_tool.check_vault():
                 self.logger.info('Account vault is located')
-                customer_local_password = key_tool.obtain_key(self.manager.eth_worker_node_account)
+                vault_data = self.key_tool.obtain_key(self.manager.vault_key)
                 # split data to pass and p_key
-                self.local_password = customer_local_password.split("_", 1)[0]
-                local_p_key = customer_local_password.split("_", 1)[1]
-                if customer_local_password == '':
-                    self.logger.info('Unable to unlock account. Please provide pynode configuration. Try to continue')
-                    # skip account password cheking and try to continue loading
-                    # return False
+                self.local_password = vault_data.split("_", 1)[0]
+                vault_account = vault_data.split("_", 1)[0]
+                local_p_key = vault_data.split("_", 1)[1]
+                if (vault_account.lower() in self.manager.eth_worker_node_account.lower()) and (local_p_key is not ''):
+                    self.logger.info('Vault check success')
                 else:
-                    accounts = self.eth.get_accounts_list()
-                    # check node accounts and if current account not in list import it
-                    if self.manager.eth_worker_node_account not in accounts:
-                        # if worker account not in accounts import it
-                        self.import_worker_account(self.local_password, local_p_key)
-                        local_p_key = None  # clear p_key after import
-                    unlock_result = self.unlock_worker_account(self.local_password)
-                    if unlock_result is False:
-                        self.logger.info('Unable to unlock account. Please provide pynode configuration. '
-                                         'Try to continue')
-                        # skip account unlock and try to continue loading
-                        # return False
-                    self.logger.info('Current worker account test unlock success')
+                    self.logger.info('Unable to unlock account vault.')
+                    self.logger.info('Please provide pynode configuration.')
+                    return False
             else:
-                self.logger.info('Unable to locate account vault. Please provide pynode configuration. Try to continue')
-                # skip vault checking and try to continue loading
-                # return False
+                self.logger.info('Unable to locate account vault.')
+                self.logger.info('Please provide pynode configuration.')
+                return False
 
             self.logger.info('Worker account determination success')
             # init worker node state machine and get current state
@@ -133,10 +122,14 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                                                         delegate=self,
                                                         address=self.node,
                                                         contract=self.manager.eth_worker_contract)
-            # bind worker node states listener and push it to delegate method
-            self.worker_node_event_thread = self.eth.bind_event(contract=self.worker_node_container,
-                                                                event='StateChanged',
-                                                                callback=self.on_worker_node_state_change)
+            # bind worker node states listener thread
+            filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
+            self.worker_node_event_thread = Thread(target=self.filter_thread_loop,
+                                                   args=(filter_on_worker, 2),
+                                                   daemon=True)
+            self.worker_node_event_thread.start()
+            status = self.worker_node_event_thread.is_alive()
+            self.logger.info('Event listener for worker node creation startup success, alive : ' + str(status))
             self.logger.info('Worker node state event thread listener initialize success')
 
             # process current worker node state after worker node event thread is initialized
@@ -161,27 +154,6 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 
     def disconnect(self):
         super().join()
-
-# -----------------------------------------
-# unlock worker account
-# -----------------------------------------
-    def import_worker_account(self, password, p_key) -> bool:
-        try:
-            if self.manager.eth_worker_node_account not in self.worker_node_container.web3.eth.accounts:
-                self.worker_node_container.web3.personal.importRawKey(p_key, password)
-        except Exception as ex:
-            # silently drop exception if account already imported
-            print(ex.args)
-        return True
-
-    def unlock_worker_account(self, password) -> bool:
-        try:
-            unlock = self.worker_node_container.web3.personal.unlockAccount(self.manager.eth_worker_node_account,
-                                                                            password,
-                                                                            duration=5)
-        except Exception as ex:
-            print(ex.args)
-        return unlock
 
 # ----------------------------------------------------------------------------------------------------------
 # JOB and PROCESSOR initialization
@@ -299,6 +271,16 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 # ----------------------------------------------------------------------------------------------------------
 # Broker listeners for state table change states processing
 # ----------------------------------------------------------------------------------------------------------
+    def filter_thread_loop(self, event_filter, poll_interval):
+        while True:
+            try:
+                for event in event_filter.get_all_entries():
+                    self.on_worker_node_state_change(event)
+                time.sleep(poll_interval)
+            except Exception as ex:
+                print('Exception on event handler.')
+                print(ex.args)
+
     def on_worker_node_state_change(self, event: dict):
         worker_state_table = self.worker_node_state_machine.state_table
         state_old = event['args']['oldState']
@@ -363,41 +345,46 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 
     def state_transact(self, name: str, cb: Callable):
         self.logger.info("Transact to worker node : " + name)
-        # unlock account for transaction
-        self.unlock_worker_account(self.local_password)
-        # internal params
-        receipt_flag = False
-        receipt = None
-        requests_count = 24
+        private_key = self.key_tool.obtain_key(self.manager.vault_key).split("_", 1)[1]
         try:
-            transaction = self.worker_node_container.transact({'from': self.manager.eth_worker_node_account})
-            transaction_result = cb(transaction)
-            while receipt_flag is not True:
-                try:
-                    receipt = self.eth.get_transaction_receipt(transaction_result)
-                except Exception:
-                    self.logger('Try get receipt request attempt left : ' + str(requests_count))
-                if receipt is not None or requests_count == 0:
-                    receipt_flag = True
-                time.sleep(5)
-                requests_count -= 1
+            nonce = self.worker_node_container.web3.eth.getTransactionCount(self.manager.eth_worker_node_account)
+            raw_transaction = None
+            if name in 'alive':
+                raw_transaction = self.worker_node_container.functions.alive() \
+                    .buildTransaction({
+                        'from': self.manager.eth_worker_node_account,
+                        'nonce': nonce})
+            if name in 'acceptAssignment':
+                raw_transaction = self.worker_node_container.functions.acceptAssignment() \
+                    .buildTransaction({
+                        'from': self.manager.eth_worker_node_account,
+                        'nonce': nonce})
+            if name in 'processToDataValidation':
+                raw_transaction = self.worker_node_container.functions.processToDataValidation() \
+                    .buildTransaction({
+                        'from': self.manager.eth_worker_node_account,
+                        'nonce': nonce})
+            if name in 'processToCognition':
+                raw_transaction = self.worker_node_container.functions.processToCognition() \
+                    .buildTransaction({
+                        'from': self.manager.eth_worker_node_account,
+                        'nonce': nonce})
+
+            if raw_transaction is not None:
+                signed_transaction = self.worker_node_container.web3.eth.account.signTransaction(raw_transaction,
+                                                                                                 private_key)
+                tx_hash = self.worker_node_container.web3.eth.sendRawTransaction(signed_transaction.rawTransaction)
+                self.logger.info('TX_HASH : ' + tx_hash.hex())
+                self.logger.info('Waiting for receipt...')
+                transaction_receipt = self.worker_node_container.web3.eth.waitForTransactionReceipt(tx_hash,timeout=300)
+                self.logger.info('TX_RECEIPT : ' + str(transaction_receipt))
+                self.logger.info('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
+            else:
+                self.logger.info('Unknown state transaction. Skip.')
         except Exception as ex:
             self.logger.error("Error executing %s transaction: %s", name, type(ex))
             self.logger.error(ex.args)
             raise CriticalTransactionError(name)
-
-        # report receipt data
-        if receipt is not None:
-            self.logger.info('Transaction success')
-            self.logger.info('TX_HASH             : ' + str(transaction_result))
-            self.logger.info('TX_RECEIPT          : ' + str(receipt_flag))
-            self.logger.info('TX_STATE            : ' + str(receipt['status']))
-        else:
-            self.logger.info('Transaction fail. Try to restart pynode.')
-            self.logger.info('This error can be caused by :')
-            self.logger.info('1. there is no internet connection')
-            self.logger.info('2. not enough funds for the transaction')
-            self.logger.info('3. invalid account settings or wrong contract addresses')
         return
 
 # ----------------------------------------------------------------------------------------------------------

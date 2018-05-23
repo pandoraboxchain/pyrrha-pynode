@@ -1,3 +1,4 @@
-[submodule "abi"]
-	path = abi
-	url = https://github.com/pandoraboxchain/pyrrha-abi.git
+[submodule "pyrrha-consensus"]
+	path = pyrrha-consensus
+	url = https://github.com/pandoraboxchain/pyrrha-consensus.git
+    branch = master
