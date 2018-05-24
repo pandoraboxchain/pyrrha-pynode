@@ -285,10 +285,11 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                 time.sleep(poll_interval)
             except Exception as ex:
                 if isinstance(ex.args, tuple):
-                    message = ex.args[0]
-                    if 'filter not found' in str(message):
-                        # sometimes for unknown reason filter drops on eth node, so recreate it
-                        event_filter = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
+                    if len(ex.args) > 0:
+                        message = ex.args[0]
+                        if 'filter not found' in str(message):
+                            # sometimes for unknown reason filter drops on eth node, so recreate it
+                            event_filter = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
                 else:
                     self.logger.info('Exception on worker event handler.')
                     self.logger.info(ex.args)
@@ -311,10 +312,11 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                 time.sleep(pool_interval)
             except Exception as ex:
                 if isinstance(ex.args, tuple):
-                    message = ex.args[0]
-                    if 'filter not found' in str(message):
-                        # sometimes for unknown reason filter drops on eth node, so recreate it
-                        event_filter = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
+                    if len(ex.args) > 0:
+                        message = ex.args[0]
+                        if 'filter not found' in str(message):
+                            # sometimes for unknown reason filter drops on eth node, so recreate it
+                            event_filter = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
                 else:
                     self.logger.info('Exception on job event handler.')
                     self.logger.info(ex.args)
