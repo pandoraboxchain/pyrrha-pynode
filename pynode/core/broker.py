@@ -124,7 +124,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                                                         contract=self.manager.eth_worker_contract)
             # bind worker node states listener thread
             filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
-            self.worker_node_event_thread = Thread(target=self.filter_thread_loop,
+            self.worker_node_event_thread = Thread(target=self.worker_filter_thread_loop,
                                                    args=(filter_on_worker, 2),
                                                    daemon=True)
             self.worker_node_event_thread.start()
@@ -173,10 +173,15 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         self.logger.info('Cognition job state machine initialized success with state : '
                          + str(current_job_state))
         self.jobs[self.job_address] = self.job_container
-        self.job_state_event_thread = self.eth.bind_event(contract=self.job_container,
-                                                          event='StateChanged',
-                                                          callback=self.on_cognitive_job_state_change)
-        self.logger.info('Cognition job state event thread listener initialize success')
+
+        filter_on_job = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
+        self.job_state_event_thread = Thread(target=self.job_filter_thread_loop,
+                                             args=(filter_on_job, 2),
+                                             daemon=True)
+        self.job_state_event_thread.start()
+        status = self.job_state_event_thread.is_alive()
+        self.logger.info('Event listener for job states creation startup success, alive : ' + str(status))
+        self.logger.info('Cognitive job state event thread listener initialize success')
         return True
 
     # TODO for multiprocess cognition need to rebuild processor init flow
@@ -214,8 +219,8 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             # get kernel and dataset addresses
             kernel_ipfs_address = kernel_container.call().ipfsAddress()
             dataset_ipfs_address = dataset_container.call().ipfsAddress()
-            self.logger.info('Kernel ipfs address : ' + kernel_ipfs_address)
-            self.logger.info('Dataset ipfs address : ' + dataset_ipfs_address)
+            self.logger.info('Kernel ipfs address : ' + str(kernel_ipfs_address))
+            self.logger.info('Dataset ipfs address : ' + str(dataset_ipfs_address))
 
             # determinate batch for current job
             job = self.jobs[self.job_address]
@@ -237,9 +242,9 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                               data_dir=self.data_dir)
             self.logger.info('IPFS connection instantiated success')
             # load kernel and dataset root files
-            self.ipfs.download_file(kernel_ipfs_address)
+            self.ipfs.download_file(kernel_ipfs_address.decode("utf-8"))
             self.logger.info('Kernel datafile download success...')
-            self.ipfs.download_file(dataset_ipfs_address)
+            self.ipfs.download_file(dataset_ipfs_address.decode("utf-8"))
             self.logger.info('Dataset datafile download success...')
 
             processor_id = '%s:%s' % (self.node, self.job_address)
@@ -271,15 +276,22 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 # ----------------------------------------------------------------------------------------------------------
 # Broker listeners for state table change states processing
 # ----------------------------------------------------------------------------------------------------------
-    def filter_thread_loop(self, event_filter, poll_interval):
+    # worker node state filter thread loop
+    def worker_filter_thread_loop(self, event_filter, poll_interval):
         while True:
             try:
                 for event in event_filter.get_all_entries():
                     self.on_worker_node_state_change(event)
                 time.sleep(poll_interval)
             except Exception as ex:
-                print('Exception on event handler.')
-                print(ex.args)
+                if isinstance(ex.args, tuple):
+                    message = ex.args[0]
+                    if 'filter not found' in str(message):
+                        # sometimes for unknown reason filter drops on eth node, so recreate it
+                        event_filter = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
+                else:
+                    self.logger.info('Exception on worker event handler.')
+                    self.logger.info(ex.args)
 
     def on_worker_node_state_change(self, event: dict):
         worker_state_table = self.worker_node_state_machine.state_table
@@ -289,6 +301,23 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                          worker_state_table[state_old].name,
                          worker_state_table[state_new].name)
         self.worker_node_state_machine.state = state_new
+
+    # job state filter loop
+    def job_filter_thread_loop(self, event_filter, pool_interval):
+        while True:
+            try:
+                for event in event_filter.get_all_entries():
+                    self.on_cognitive_job_state_change(event)
+                time.sleep(pool_interval)
+            except Exception as ex:
+                if isinstance(ex.args, tuple):
+                    message = ex.args[0]
+                    if 'filter not found' in str(message):
+                        # sometimes for unknown reason filter drops on eth node, so recreate it
+                        event_filter = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
+                else:
+                    self.logger.info('Exception on job event handler.')
+                    self.logger.info(ex.args)
 
     def on_cognitive_job_state_change(self, event: dict):
         job_state_table = self.job_state_machine.state_table
@@ -343,7 +372,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         else:
             list(self.processors.values())[0].compute()
 
-    def state_transact(self, name: str, cb: Callable):
+    def state_transact(self, name: str, cb: Callable, *result_file):
         self.logger.info("Transact to worker node : " + name)
         private_key = self.key_tool.obtain_key(self.manager.vault_key).split("_", 1)[1]
         try:
@@ -364,8 +393,23 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                     .buildTransaction({
                         'from': self.manager.eth_worker_node_account,
                         'nonce': nonce})
+            if name in 'reportInvalidData':
+                raw_transaction = self.worker_node_container.functions.reportInvalidData() \
+                    .buildTransaction({
+                        'from': self.manager.eth_worker_node_account,
+                        'nonce': nonce})
+            if name in 'acceptValidData':
+                raw_transaction = self.worker_node_container.functions.acceptValidData() \
+                    .buildTransaction({
+                        'from': self.manager.eth_worker_node_account,
+                        'nonce': nonce})
             if name in 'processToCognition':
                 raw_transaction = self.worker_node_container.functions.processToCognition() \
+                    .buildTransaction({
+                        'from': self.manager.eth_worker_node_account,
+                        'nonce': nonce})
+            if name in 'provideResults':
+                raw_transaction = self.worker_node_container.functions.provideResults(str.encode(result_file[0])) \
                     .buildTransaction({
                         'from': self.manager.eth_worker_node_account,
                         'nonce': nonce})
@@ -376,7 +420,8 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                 tx_hash = self.worker_node_container.web3.eth.sendRawTransaction(signed_transaction.rawTransaction)
                 self.logger.info('TX_HASH : ' + tx_hash.hex())
                 self.logger.info('Waiting for receipt...')
-                transaction_receipt = self.worker_node_container.web3.eth.waitForTransactionReceipt(tx_hash,timeout=300)
+                transaction_receipt = self.worker_node_container.web3.eth.waitForTransactionReceipt(tx_hash,
+                                                                                                    timeout=300)
                 self.logger.info('TX_RECEIPT : ' + str(transaction_receipt))
                 self.logger.info('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
             else:
@@ -412,8 +457,9 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
     def processor_computing_complete(self, processor_id: str, results_file: str):
         self.logger.info('Processor computing complete.')
         self.logger.info('Providing results')
+        self.logger.info('Result file address : ' + results_file)
         self.manager.set_complete_reset()
-        self.state_transact('provideResults', lambda tx: tx.provideResults(results_file))
+        self.state_transact('provideResults', lambda tx: tx.provideResults(results_file), results_file)
 
     def processor_computing_failure(self, processor_id: Union[str, None]):
         self.logger.critical("Can't complete computing, exiting in order to reboot and try to repeat the work")

@@ -130,8 +130,9 @@ class Processor(Thread):
             self.logger.error(ex.args)
             self.delegate.processor_computing_failure(self.id)
             return
-        self.ipfs_api.upload_file(self.results_file)
-        self.delegate.processor_computing_complete(self.id, self.results_file)
+        # need to return file address
+        ipfs_result_address = self.ipfs_api.upload_file(self.results_file)
+        self.delegate.processor_computing_complete(self.id, ipfs_result_address)
         self.clean_up()
 
     def clean_up(self):

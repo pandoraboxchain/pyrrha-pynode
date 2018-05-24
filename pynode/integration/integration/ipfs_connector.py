@@ -30,7 +30,15 @@ class IpfsConnector(IpfsAbstract):
             with open(file_address, "wb") as f:
                 self.logger.info("Search IPFS for data : " + file_address)
                 start = time.time()
-                response = requests.get(host_remote + file_address, stream=True)
+                try:
+                    response = requests.get(host_remote + file_address, stream=True, timeout=30)
+                except Exception as ex:
+                    if isinstance(ex.args, tuple):
+                        str_exception = ex.args[0].args[0]
+                        if 'Read timed out' in str(str_exception):
+                            self.logger.info('Get file by getaway timed out try get by ipfs API')
+                            return self.connector.get(file_address)
+
                 total_length = response.headers.get('content-length')
 
                 if total_length is None:  # no content length header
