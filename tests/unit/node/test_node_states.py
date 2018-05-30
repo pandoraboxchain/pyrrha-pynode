@@ -31,7 +31,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
     def start_computing(self):
         self.start_computing_flag = 1
 
-    def state_transact(self, name: str, cb: Callable):
+    def state_transact(self, name: str):
         self.state_transact_flag = 1
 
     # ------------------------------------

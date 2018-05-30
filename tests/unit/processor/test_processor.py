@@ -109,16 +109,14 @@ class TestProcessor(unittest.TestCase, ProcessorDelegate):
         assert processor.kernel is None
         assert processor.dataset is None
 
-    def test_init_processor_dataset_error(self):
+    def test_init_processor_dataset_predict(self):
         processor = Processor(ipfs_api=self.test_ipfs_instance,
                               processor_id=0,
                               delegate=self)
         processor_prepare_result = processor.prepare(kernel_file=self.kernel_1_file,
                                                      dataset_file=self.dataset_3_file,
                                                      batch=0)
-        assert processor_prepare_result is False
-        assert processor.kernel is None
-        assert processor.dataset is None
+        assert processor_prepare_result is True
 
     # ------------------------------------
     # test load processor

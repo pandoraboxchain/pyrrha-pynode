@@ -21,7 +21,7 @@ class WorkerNodeDelegate(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def state_transact(self, name: str, cb: Callable):
+    def state_transact(self, name: str):
         pass
 
 
@@ -114,7 +114,7 @@ class WorkerNode(StatefulContract):
         pass
 
     def on_enter_state_offline(self, from_state: int):
-        self.delegate.state_transact('alive', lambda tx: tx.alive())
+        self.delegate.state_transact('alive')
 
     def on_exit_state_offline(self, to_state: int):
         pass
@@ -128,14 +128,14 @@ class WorkerNode(StatefulContract):
     def on_enter_state_assigned(self, from_state: int):
         self.delegate.create_cognitive_job()
         if self.delegate.job_address is not None:
-            self.delegate.state_transact('acceptAssignment', lambda tx: tx.acceptAssignment())
+            self.delegate.state_transact('acceptAssignment')
 
     def on_exit_state_assigned(self, to_state: int):
         pass
 
     def on_enter_state_rfdv(self, from_state: int):
         self.delegate.create_cognitive_job()
-        self.delegate.state_transact('processToDataValidation', lambda tx: tx.processToDataValidation())
+        self.delegate.state_transact('processToDataValidation')
 
     def on_exit_state_rfdv(self, to_state: int):
         pass
@@ -148,7 +148,7 @@ class WorkerNode(StatefulContract):
         pass
 
     def on_enter_state_ready_for_computing(self, from_state: int):
-        self.delegate.state_transact('processToCognition', lambda tx: tx.processToCognition())
+        self.delegate.state_transact('processToCognition')
 
     def on_exit_state_ready_for_computing(self, to_state: int):
         pass

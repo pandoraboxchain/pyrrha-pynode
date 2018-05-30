@@ -16,7 +16,9 @@ def launch_moc_service(*args):
     start_dir = 'unit'
     suite_unit = loader_unit.discover(start_dir)
     runner = unittest.TextTestRunner(failfast=True)
-    runner.run(suite_unit)
+    # runner.run(suite_unit)
+    ret = not runner.run(suite_unit).wasSuccessful()
+    sys.exit(ret)
 
 
 if __name__ == "__main__":

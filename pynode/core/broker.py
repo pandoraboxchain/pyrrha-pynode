@@ -374,7 +374,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         else:
             list(self.processors.values())[0].compute()
 
-    def state_transact(self, name: str, cb: Callable, *result_file):
+    def state_transact(self, name: str, *result_file):
         self.logger.info("Transact to worker node : " + name)
         private_key = self.key_tool.obtain_key(self.manager.vault_key).split("_", 1)[1]
         try:
@@ -449,19 +449,19 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
     def processor_load_complete(self, processor_id: str):
         self.logger.info('Processor loading complete.')
         self.logger.info('Confirming data validness')
-        self.state_transact('acceptValidData', lambda tx: tx.acceptValidData())
+        self.state_transact('acceptValidData')
 
     def processor_load_failure(self, processor_id: Union[str, None]):
         self.logger.info('Processor loading fail.')
         self.logger.info('Reporting invalid data')
-        self.state_transact('reportInvalidData', lambda tx: tx.reportInvalidData())
+        self.state_transact('reportInvalidData')
 
     def processor_computing_complete(self, processor_id: str, results_file: str):
         self.logger.info('Processor computing complete.')
         self.logger.info('Providing results')
         self.logger.info('Result file address : ' + results_file)
         self.manager.set_complete_reset()
-        self.state_transact('provideResults', lambda tx: tx.provideResults(results_file), results_file)
+        self.state_transact('provideResults', results_file)
 
     def processor_computing_failure(self, processor_id: Union[str, None]):
         self.logger.critical("Can't complete computing, exiting in order to reboot and try to repeat the work")

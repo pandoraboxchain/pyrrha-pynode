@@ -75,4 +75,4 @@ class TestDataset(unittest.TestCase):
         dataset = Dataset(dataset_file=self.dataset_3_file,
                           ipfs_api=self.test_ipfs_instance,
                           batch_no=0)
-        assert dataset.init_dataset() is False
+        assert dataset.init_dataset() is True  # inference predict strategy
