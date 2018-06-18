@@ -2,7 +2,7 @@
 FROM python:3.6
 
 # Copy the current directory contents into the container at /app
-COPY ./abi /abi
+COPY ./pyrrha-consensus/build/contracts /pyrrha-consensus/build/contracts
 COPY ./pynode /pynode
 COPY ./requirements.txt /requirements.txt
 
@@ -13,4 +13,4 @@ WORKDIR /pynode
 RUN pip install --trusted-host pypi.python.org -r ../requirements.txt
 
 # Run app.py when the container launches
-CMD ["python",  "./pynode.py", "-p","<customer_vault_pass>", "-c", "core/config/pynode.ini", "-i", "pandora", "-e", "remote", "-a", "../abi/"]
+CMD ["python",  "./pynode.py", "-p","<password form local key vault>", "-c", "core/config/pynode.ini", "-i", "pandora", "-e", "remote", "-a", "../pyrrha-consensus/build/contracts/"]
