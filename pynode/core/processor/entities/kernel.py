@@ -4,6 +4,7 @@ import logging
 from core.patterns.pynode_logger import LogSocketHandler
 from core.manager import Manager
 from .dataset import Dataset
+from keras.models import model_from_json
 
 
 class Kernel:
@@ -25,7 +26,7 @@ class Kernel:
         try:
             self.model_address = self.json_kernel['model']
             Manager.get_instance().set_job_kernel_ipfs_address(self.model_address)
-            self.weights_address = self.json_kernel['weight']
+            self.weights_address = self.json_kernel['weights']
             Manager.get_instance().set_job_dataset_ipfs_address(self.weights_address)
         except Exception as ex:
             self.logger.error("Wrong Kernel data file structure:")
@@ -76,14 +77,17 @@ class Kernel:
             self.logger.error('Error reading kernel model')
             self.logger.error(ex.args)
             return None
-
-        if self.weights_address:
-            self.model.load_weights(self.weights_address)
         return self.model
 
     def inference_prediction(self, dataset: Dataset):
         self.logger.info('Running prediction model inference...')
-        result = self.model.predict(dataset.dataset)
+        self.model.compile(loss=dataset.loss,
+                           optimizer=dataset.optimizer)
+        # check and load weights after model compile
+        if self.weights_address:
+            if self.weights_address != self.model_address:
+                self.model.load_weights(self.weights_address)
+        result = self.model.predict(dataset.dataset, batch_size=100)  # may be take from price ? (100 for test)
         # tensorflow bug https://github.com/tensorflow/tensorflow/issues/14356
         keras.backend.clear_session()
         return result

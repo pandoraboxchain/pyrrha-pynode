@@ -47,26 +47,36 @@ class Dataset:
             train_block = self.json_dataset['train']
             self.train_x_address = train_block['train_x']
             self.train_y_address = train_block['train_y']
-            self.loss = train_block['loss']
-            self.optimizer = train_block['optimizer']
-            self.batch_size = train_block['batch_size']
-            self.epochs = train_block['epochs']
-            self.validation_split = train_block['validation_split']
-            self.shuffle = train_block['shuffle']
-            self.initial_epoch = train_block['initial_epoch']
-            train_block = True
         except Exception as ex:
             self.logger.error("Wrong Dataset data file structure")
             self.logger.error(ex.args)
 
         try:
-            # batches block parsing
-            batches = self.json_dataset['batches']
-            self.data_address = batches[self.batch_no]
-            batches_block = True
+            # options block parsing
+            options_block = self.json_dataset['options']
+            # --------- are necessary for model compilation
+            self.loss = options_block['loss']
+            self.optimizer = options_block['optimizer']
+            # ---------------------------------------------
+            self.batch_size = options_block['batch_size']
+            self.epochs = options_block['epochs']
+            self.validation_split = options_block['validation_split']
+            self.shuffle = options_block['shuffle']
+            self.initial_epoch = options_block['initial_epoch']
+            train_block = True
         except Exception as ex:
             self.logger.error("Wrong Dataset data file structure")
             self.logger.error(ex.args)
+
+        if train_block is False:
+            try:
+                # batches block parsing (only for prediction)
+                batches = self.json_dataset['batches']
+                self.data_address = batches[self.batch_no]
+                batches_block = True
+            except Exception as ex:
+                self.logger.error("Wrong Dataset data file structure")
+                self.logger.error(ex.args)
 
         if train_block is False and batches_block is False:
             self.logger.error('Unable to parse train or batches block')
@@ -119,7 +129,7 @@ class Dataset:
         self.logger.info('Loading dataset...')
         h5f = h5py.File(self.data_address, 'r')
         # magic internal variable can not be empty (for more easy performance named as structure variable)
-        h5ds = h5f['dataset']
+        h5ds = h5f['batches']
         self.dataset = np.ndarray(shape=h5ds.shape)
         h5ds.read_direct(dest=self.dataset)
         return self.dataset

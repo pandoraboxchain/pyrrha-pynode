@@ -5,7 +5,7 @@
 Experimental node implementation for Pyrrha version of Pandora Boxchain providing computations using AI kernels on hardware
 from providers. Current version is have rebuilded architecture
 
-* Python 3.5+ support
+* Python 3.6+ support
 
 ## Quickstart
 
@@ -54,7 +54,7 @@ An easier way to use a docker
 ## Simple launch
 Command for simple launch   
 ```sh
-python pynode.py
+python pynode.py -p<password from local vault>
 ```   
 After simple console launching in terminal will be printed launch information based on configs and launch settings
 for example:
@@ -75,9 +75,14 @@ for example:
    IPFS port                    : 5001
    IPFS file storage            : tmp
    Web socket enable            : False
-   ABI folder path              : ../abi/
+   ABI folder path              : ../pyrrha-consensus/build/contracts/
 ``` 
 and pynode perform launch in current console thread.
+
+-- pynode ver 0.1.2, pynode-core ver 0.1.2
+- update batches logic
+- refactor filter events
+- refactor kernel and dataset parsers
 
 -- pynode ver 0.1.1, pynode-core ver 0.1.1
 - update web3 py to 4.2.1 version for pynode and tools
@@ -115,19 +120,32 @@ your launch parameters
    
    
 Current remote deployment for testing and PoC
- - ======== KERNEL  =========
-   - kernel contract hash - 0xF50850B6f5bBd02Cc600dACB2c96E82507808117
-   - main kernel file - kernel.json - QmVmB3Nj1fNWFFyX7KtC6c55SGQXXrwUYsUrWtTf5JEDn7 
-                                    - 0xF50850B6f5bBd02Cc600dACB2c96E82507808117
-   contain link for 
-   - model   - QmRRRboNgF2169kTGozNPF6VmYSZWbrwbfoo9Fag5JZqLi - CIFAR10_model.json
-   - weight  - QmeHFuWJcEeCbD7FNY5kWXnX9zwNq4cUDmpXRVUbriHWCi - CIFAR10_weights.h5
-- ======== DATASET =========
-   - main dataset file - dataset.json - QmPrsjCfzKbo1qhgh4DvreaB4q74sv3Y8KNriR3qSDEGSb
-                                        0xfcC37a39c5085b177f7930B7D0b03b88Fd029E0e
-   - contain link for batches
-   [QmaNMav9HywBxwEQ6FMf2CGnWPD7gdHG8V3nT1BySnsQnz] - batch.h5
+
+======== KERNEL  =========
+  - KERNEL for training 
+    - 0xC59C2f5e9e5e38bcf55CDfaB6450155967a1a65F
+    - ipfs address : QmRRRboNgF2169kTGozNPF6VmYSZWbrwbfoo9Fag5JZqLi (model)
+ 
+  - KERNEL for prediction
+    - 0x2e1bc6cDca93c6C22C4A067C317177f5EF412E10
+    - ipfs address : QmRRRboNgF2169kTGozNPF6VmYSZWbrwbfoo9Fag5JZqLi (model)
+    - ipfs address : QmRuocz82HetMMmLAFBuBGxNmpeUCCCpQqhSreYRMD6vBL (weights)
+   
+======== DATASET =========
+  - DATASET for training
+    - 0x6a9d4A8BB2aa5B5BafA7a5e04234410829688F60
+    - ipfs address : QmeZ5Ra4NsSVqTv5T6jiDKM7yDVKPmwDH94Sfuyy3Knd1d 
+      - "train_x":"QmQNWiv1s7rhoUrfELCtK65VZGbTE79Bfa3kkoeFf7aVQA"
+      - "train_y":"QmT3keTG7fXrPRZApjwVWvZDamLC5LeyvQLou4rSJLJJEj"
+
+  - DATASET for predict (one batch)
+    - 0x2632103cfD39Bdd1A9f170f26A0295dbaFeeBb85
+    - ipfs address : QmfLq32vssJ8RmcT49cFtUmFm3Rw2MozWhkTRRFyKbobX8
+        - batch ipfs address : QmYhL15VowVXhUPms1VhTcmeVBjxWZhNEQ5kpdo5kBoPYY
   
-Job Constructor
-  - kernel  0xB528764bfd7DB0D287C4A4DFd517A14d790571A1
-  - dataset 0x07AC03b029f75D7d2a4662e23E601f7B1266b175
+  - DATASET fro predict (two batches)
+    - 0x0dbE74b60c588DFc3b6aeB973e78B4748e499979
+    - ipfs address : QmRqqir1e2BL91vRmCfuQQcbTRHgU6jJKNXGFb7pvQxGgW
+        - batch ipfs address : QmYhL15VowVXhUPms1VhTcmeVBjxWZhNEQ5kpdo5kBoPYY
+        - batch ipfs address : QmWFKhJK4fuE2ixnyysRVnRk4WAcvGVpHPpvsUTNn4zKLW
+  

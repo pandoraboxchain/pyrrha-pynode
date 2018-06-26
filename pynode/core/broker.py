@@ -125,7 +125,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             # bind worker node states listener thread
             filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
             self.worker_node_event_thread = Thread(target=self.worker_filter_thread_loop,
-                                                   args=(filter_on_worker, 2),
+                                                   args=(filter_on_worker, 5),
                                                    daemon=True)
             self.worker_node_event_thread.start()
             status = self.worker_node_event_thread.is_alive()
@@ -176,7 +176,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 
         filter_on_job = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
         self.job_state_event_thread = Thread(target=self.job_filter_thread_loop,
-                                             args=(filter_on_job, 2),
+                                             args=(filter_on_job, 7),
                                              daemon=True)
         self.job_state_event_thread.start()
         status = self.job_state_event_thread.is_alive()
@@ -232,6 +232,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             for idx, w in enumerate(workers):
                 if self.node.lower() == w.lower():
                     batch = idx
+                    self.logger.info('BATCH_INDEX : ' + str(batch))
                     break
             if batch is None:
                 raise Exception("Can't determine this node batch number")
@@ -280,15 +281,19 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
     def worker_filter_thread_loop(self, event_filter, poll_interval):
         while True:
             try:
-                for event in event_filter.get_all_entries():
+                for event in event_filter.get_new_entries():  # get_all_entries()
                     self.on_worker_node_state_change(event)
                 time.sleep(poll_interval)
             except Exception as ex:
+                # https://github.com/ethereum/web3.py/issues/354
                 if isinstance(ex.args, tuple):
                     if len(ex.args) > 0:
                         message = ex.args[0]
                         if 'filter not found' in str(message):
                             # sometimes for unknown reason filter drops on eth node, so recreate it
+                            self.logger.info('work_filter recreated')
+                            self.worker_node_container.events.StateChanged.reset()
+                            self.worker_node_container.events.StateChanged.uninstall()
                             event_filter = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
                 else:
                     self.logger.info('Exception on worker event handler.')
@@ -307,15 +312,19 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
     def job_filter_thread_loop(self, event_filter, pool_interval):
         while True:
             try:
-                for event in event_filter.get_all_entries():
+                for event in event_filter.get_new_entries(): # get_all_entries()
                     self.on_cognitive_job_state_change(event)
                 time.sleep(pool_interval)
             except Exception as ex:
+                # https://github.com/ethereum/web3.py/issues/354
                 if isinstance(ex.args, tuple):
                     if len(ex.args) > 0:
                         message = ex.args[0]
                         if 'filter not found' in str(message):
                             # sometimes for unknown reason filter drops on eth node, so recreate it
+                            self.logger.info('job_filter recreated')
+                            self.job_container.events.StateChanged.reset()
+                            self.job_container.events.StateChanged.uninstall()
                             event_filter = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
                 else:
                     self.logger.info('Exception on job event handler.')
@@ -377,61 +386,65 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
     def state_transact(self, name: str, *result_file):
         self.logger.info("Transact to worker node : " + name)
         private_key = self.key_tool.obtain_key(self.manager.vault_key).split("_", 1)[1]
-        try:
-            nonce = self.worker_node_container.web3.eth.getTransactionCount(self.manager.eth_worker_node_account)
-            raw_transaction = None
-            if name in 'alive':
-                raw_transaction = self.worker_node_container.functions.alive() \
-                    .buildTransaction({
-                        'from': self.manager.eth_worker_node_account,
-                        'nonce': nonce})
-            if name in 'acceptAssignment':
-                raw_transaction = self.worker_node_container.functions.acceptAssignment() \
-                    .buildTransaction({
-                        'from': self.manager.eth_worker_node_account,
-                        'nonce': nonce})
-            if name in 'processToDataValidation':
-                raw_transaction = self.worker_node_container.functions.processToDataValidation() \
-                    .buildTransaction({
-                        'from': self.manager.eth_worker_node_account,
-                        'nonce': nonce})
-            if name in 'reportInvalidData':
-                raw_transaction = self.worker_node_container.functions.reportInvalidData() \
-                    .buildTransaction({
-                        'from': self.manager.eth_worker_node_account,
-                        'nonce': nonce})
-            if name in 'acceptValidData':
-                raw_transaction = self.worker_node_container.functions.acceptValidData() \
-                    .buildTransaction({
-                        'from': self.manager.eth_worker_node_account,
-                        'nonce': nonce})
-            if name in 'processToCognition':
-                raw_transaction = self.worker_node_container.functions.processToCognition() \
-                    .buildTransaction({
-                        'from': self.manager.eth_worker_node_account,
-                        'nonce': nonce})
-            if name in 'provideResults':
-                raw_transaction = self.worker_node_container.functions.provideResults(str.encode(result_file[0])) \
-                    .buildTransaction({
-                        'from': self.manager.eth_worker_node_account,
-                        'nonce': nonce})
+        tx_status = 0
+        while tx_status == 0:
+            try:
+                nonce = self.worker_node_container.web3.eth.getTransactionCount(self.manager.eth_worker_node_account)
+                raw_transaction = None
+                if name in 'alive':
+                    raw_transaction = self.worker_node_container.functions.alive() \
+                        .buildTransaction({
+                            'from': self.manager.eth_worker_node_account,
+                            'nonce': nonce})
+                if name in 'acceptAssignment':
+                    raw_transaction = self.worker_node_container.functions.acceptAssignment() \
+                        .buildTransaction({
+                            'from': self.manager.eth_worker_node_account,
+                            'nonce': nonce})
+                if name in 'processToDataValidation':
+                    raw_transaction = self.worker_node_container.functions.processToDataValidation() \
+                        .buildTransaction({
+                            'from': self.manager.eth_worker_node_account,
+                            'nonce': nonce})
+                if name in 'reportInvalidData':
+                    raw_transaction = self.worker_node_container.functions.reportInvalidData() \
+                        .buildTransaction({
+                            'from': self.manager.eth_worker_node_account,
+                            'nonce': nonce})
+                if name in 'acceptValidData':
+                    raw_transaction = self.worker_node_container.functions.acceptValidData() \
+                        .buildTransaction({
+                            'from': self.manager.eth_worker_node_account,
+                            'nonce': nonce})
+                if name in 'processToCognition':
+                    raw_transaction = self.worker_node_container.functions.processToCognition() \
+                        .buildTransaction({
+                            'from': self.manager.eth_worker_node_account,
+                            'nonce': nonce})
+                if name in 'provideResults':
+                    raw_transaction = self.worker_node_container.functions.provideResults(str.encode(result_file[0])) \
+                        .buildTransaction({
+                            'from': self.manager.eth_worker_node_account,
+                            'nonce': nonce})
 
-            if raw_transaction is not None:
-                signed_transaction = self.worker_node_container.web3.eth.account.signTransaction(raw_transaction,
-                                                                                                 private_key)
-                tx_hash = self.worker_node_container.web3.eth.sendRawTransaction(signed_transaction.rawTransaction)
-                self.logger.info('TX_HASH : ' + tx_hash.hex())
-                self.logger.info('Waiting for receipt...')
-                transaction_receipt = self.worker_node_container.web3.eth.waitForTransactionReceipt(tx_hash,
-                                                                                                    timeout=300)
-                self.logger.info('TX_RECEIPT : ' + str(transaction_receipt))
-                self.logger.info('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
-            else:
-                self.logger.info('Unknown state transaction. Skip.')
-        except Exception as ex:
-            self.logger.error("Error executing %s transaction: %s", name, type(ex))
-            self.logger.error(ex.args)
-            raise CriticalTransactionError(name)
+                if raw_transaction is not None:
+                    signed_transaction = self.worker_node_container.web3.eth.account.signTransaction(raw_transaction,
+                                                                                                     private_key)
+                    tx_hash = self.worker_node_container.web3.eth.sendRawTransaction(signed_transaction.rawTransaction)
+                    self.logger.info('TX_HASH : ' + tx_hash.hex())
+                    self.logger.info('Waiting for receipt...')
+                    transaction_receipt = self.worker_node_container.web3.eth.waitForTransactionReceipt(tx_hash,
+                                                                                                        timeout=300)
+                    self.logger.info('TX_RECEIPT : ' + str(transaction_receipt))
+                    self.logger.info('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
+                    tx_status = transaction_receipt['status']
+                else:
+                    self.logger.info('Unknown state transaction. Skip.')
+                    tx_status = 1  # for unknown state transaction reason
+            except Exception as ex:
+                self.logger.error("Error executing %s transaction: %s", name, type(ex))
+                self.logger.error(ex.args)
+                raise CriticalTransactionError(name)
         return
 
 # ----------------------------------------------------------------------------------------------------------

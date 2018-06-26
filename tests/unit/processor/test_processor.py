@@ -88,14 +88,14 @@ class TestProcessor(unittest.TestCase, ProcessorDelegate):
         assert processor.dataset.process == 'predict'
         # prediction necessary params
         assert processor.dataset.init_dataset() is True
-        assert processor.dataset.train_x_address == ''
-        assert processor.dataset.train_y_address == ''
-        assert processor.dataset.loss == ''
-        assert processor.dataset.optimizer == ''
-        assert processor.dataset.batch_size == 0
-        assert processor.dataset.epochs == 0
+        assert processor.dataset.train_x_address is None
+        assert processor.dataset.train_y_address is None
+        assert processor.dataset.loss == 'categorical_crossentropy'
+        assert processor.dataset.optimizer == 'adam'
+        assert processor.dataset.batch_size is None
+        assert processor.dataset.epochs is None
         assert processor.dataset.validation_split == 0
-        assert processor.dataset.shuffle == ''
+        assert processor.dataset.shuffle is False
         assert processor.dataset.initial_epoch == 0
 
     def test_init_processor_kernel_error(self):

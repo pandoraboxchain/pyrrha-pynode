@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='core',
-      version='0.1.1',
+      version='0.1.2',
       author="""
               Dr Maxim Orlovsky <orlovsky@pandora.foundation>,
               Sergey Korostelyov <striderbox@gmail.com>'

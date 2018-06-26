@@ -159,6 +159,7 @@ def on_worker_node_created(event: dict):
     print("Please save the address in order to avoid losing it")
     print("Pynode is configured and ready for launch with default parameters and your vault password")
     MainModel.obtaining_flag = True
+    exit(0)
 # -------------------------------------------------
 
 

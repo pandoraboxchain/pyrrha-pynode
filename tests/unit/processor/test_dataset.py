@@ -59,14 +59,14 @@ class TestDataset(unittest.TestCase):
                           ipfs_api=self.test_ipfs_instance,
                           batch_no=0)
         assert dataset.init_dataset() is True
-        assert dataset.train_x_address == ''
-        assert dataset.train_y_address == ''
-        assert dataset.loss == ''
-        assert dataset.optimizer == ''
-        assert dataset.batch_size == 0
-        assert dataset.epochs == 0
+        assert dataset.train_x_address is None
+        assert dataset.train_y_address is None
+        assert dataset.loss == 'categorical_crossentropy'
+        assert dataset.optimizer == 'adam'
+        assert dataset.batch_size is None
+        assert dataset.epochs is None
         assert dataset.validation_split == 0
-        assert dataset.shuffle == ''
+        assert dataset.shuffle is False
         assert dataset.initial_epoch == 0
         # data in dataset is for fit operation
         assert dataset.process == 'predict'

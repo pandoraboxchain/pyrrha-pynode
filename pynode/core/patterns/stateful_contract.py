@@ -12,6 +12,7 @@ class StatefulContract(StateMachine):
         self.contract_container = contract_container
 
     def process_state(self):
+        state = 0
         try:
             state = self.contract_container.call().currentState()
         except Exception as ex:

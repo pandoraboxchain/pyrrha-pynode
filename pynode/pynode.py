@@ -137,7 +137,7 @@ def main(argv):
     parser.add_argument('-v ',
                         '--version',
                         action='version',
-                        version='%(prog)s 0.1.1')
+                        version='%(prog)s 0.1.2')
 
     results = parser.parse_args()
 
@@ -261,7 +261,7 @@ def instantiate_contracts(abi_path, eth_hooks):
             with open(abi_path + "Kernel.json", encoding='utf-8') as eth_kernel_contract:
                 manager.eth_kernel_contract = json.load(eth_kernel_contract)['abi']
                 print('Kernel abi loaded')
-        if os.path.isfile(abi_path + "CognitiveJob.json"):
+        if os.path.isfile(abi_path + "Dataset.json"):
             with open(abi_path + "Dataset.json", encoding='utf-8') as eth_dataset_contract:
                 manager.eth_dataset_contract = json.load(eth_dataset_contract)['abi']
                 print('Dataset abi loaded')

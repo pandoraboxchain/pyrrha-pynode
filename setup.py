@@ -8,7 +8,7 @@ setup(name='pyrrha-pynode',
             Calculations are conducted in the field of Deep learning     
             (training operation or prediction)
       """,
-      version='0.1.1',
+      version='0.1.2',
       author="""
               Dr Maxim Orlovsky <orlovsky@pandora.foundation>,
               Sergey Korostelyov <striderbox@gmail.com>'
