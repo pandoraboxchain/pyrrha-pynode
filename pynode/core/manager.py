@@ -6,6 +6,7 @@ class Manager:
     pynode current states
     """
 
+    primary_wd = None
 # ----------------------------------
 # Global Pynode settings CANT be changed while pynode is launched
 # ----------------------------------

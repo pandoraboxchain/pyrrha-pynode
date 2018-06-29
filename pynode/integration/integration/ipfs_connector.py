@@ -4,6 +4,7 @@ import requests
 import time
 import math
 import logging
+import sys
 
 from integration.ipfs_service import IpfsAbstract
 
@@ -48,7 +49,7 @@ class IpfsConnector(IpfsAbstract):
                     if total_iterations > 1:
                         self.print_progress_bar(0,
                                                 total_iterations,
-                                                prefix='Progress:',
+                                                prefix='Download:',
                                                 suffix='Complete',
                                                 length=50)
                     current_iteration = 0
@@ -57,7 +58,7 @@ class IpfsConnector(IpfsAbstract):
                         current_iteration = current_iteration + 1
                         self.print_progress_bar(current_iteration,
                                                 total_iterations,
-                                                prefix='Progress:',
+                                                prefix='Download:',
                                                 suffix='Complete',
                                                 length=50)
                     end = time.time()
@@ -94,7 +95,12 @@ class IpfsConnector(IpfsAbstract):
         percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
         filled_length = int(length * iteration // total)
         bar = fill * filled_length + '-' * (length - filled_length)
-        self.logger.info('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix))  # + '\r\n'
+        message = '\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix)
+        # simple solution working correctly only on unix like systems
+        # self.logger.info(message)
+        sys.stdout.write(message)
+        sys.stdout.flush()
         # Print New Line on Complete
-        #if iteration == total:
-            #self.logger.info('\r\n')
+        if iteration == total:
+            sys.stdout.write('\r\n')
+            sys.stdout.flush()

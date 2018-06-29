@@ -48,6 +48,7 @@ class StateMachine:
         self.__state = None
         self.__state_table = table
         self.force_rules = force_rules
+        self.logger = logging.getLogger("StateMachine")
 
     @property
     def state(self) -> State:
@@ -56,19 +57,20 @@ class StateMachine:
     @state.setter
     def state(self, to_state: State):
         from_state = self.__state
-
+        # sometimes strange state changing income (validate it here)
+        # self.logger.info('from : ' + str(from_state) + " ---> to :" + str(to_state))
+        # TODO conduct a more in-depth study of the states
         if from_state is not None:
             if to_state not in self.state_table[from_state].transits_to:
                 if self.force_rules:
-                    # TODO strange call for change state after job complete (eth filter glitch)
                     # uncomment for test launch
                     raise StateTransitionError(from_state=from_state, to_state=to_state)
                     # logging.error("Unregistered state transition from %s to %s",
                     #                self.state_table[from_state].name, self.state_table[to_state].name)
                     # return
                 else:
-                    logging.warning("Unregistered state transition from %s to %s",
-                                    self.state_table[from_state].name, self.state_table[to_state].name)
+                    self.logger.info("Unregistered state transition from %s to %s",
+                                     self.state_table[from_state].name, self.state_table[to_state].name)
                     return
 
             self.state_table[from_state].on_exit(to_state)

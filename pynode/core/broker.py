@@ -2,6 +2,9 @@ import sys
 import logging
 import json
 import time
+import os
+import subprocess
+
 
 from threading import Thread
 from typing import Union, Callable
@@ -102,14 +105,18 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                 self.logger.info('Account vault is located')
                 vault_data = self.key_tool.obtain_key(self.manager.vault_key)
                 # split data to pass and p_key
-                self.local_password = vault_data.split("_", 1)[0]
-                vault_account = vault_data.split("_", 1)[0]
-                local_p_key = vault_data.split("_", 1)[1]
-                if (vault_account.lower() in self.manager.eth_worker_node_account.lower()) and (local_p_key is not ''):
-                    self.logger.info('Vault check success')
-                else:
-                    self.logger.info('Unable to unlock account vault.')
-                    self.logger.info('Please provide pynode configuration.')
+                try:
+                    self.local_password = vault_data.split("_", 1)[0]
+                    vault_account = vault_data.split("_", 1)[0]
+                    local_p_key = vault_data.split("_", 1)[1]
+                    if (vault_account.lower() in self.manager.eth_worker_node_account.lower()) and (local_p_key is not ''):
+                        self.logger.info('Vault check success')
+                    else:
+                        self.logger.info('Unable to unlock account vault.')
+                        self.logger.info('Please provide pynode configuration.')
+                        return False
+                except Exception as ex:
+                    self.logger.info('Exception on unlock account vault.')
                     return False
             else:
                 self.logger.info('Unable to locate account vault.')
@@ -125,7 +132,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             # bind worker node states listener thread
             filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
             self.worker_node_event_thread = Thread(target=self.worker_filter_thread_loop,
-                                                   args=(filter_on_worker, 5),
+                                                   args=(filter_on_worker, 2),
                                                    daemon=True)
             self.worker_node_event_thread.start()
             status = self.worker_node_event_thread.is_alive()
@@ -158,7 +165,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 # ----------------------------------------------------------------------------------------------------------
 # JOB and PROCESSOR initialization
 # ----------------------------------------------------------------------------------------------------------
-    # todo job address is necessary ADD it to method call parameters
+    # job address is necessary ADD it to method call parameters
     def init_cognitive_job(self) -> bool:
         self.manager.job_contract_address = self.job_address
         self.job_container = self.eth.init_contract(server_address=self.manager.eth_host,
@@ -176,7 +183,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 
         filter_on_job = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
         self.job_state_event_thread = Thread(target=self.job_filter_thread_loop,
-                                             args=(filter_on_job, 7),
+                                             args=(filter_on_job, 2),
                                              daemon=True)
         self.job_state_event_thread.start()
         status = self.job_state_event_thread.is_alive()
@@ -292,8 +299,6 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                         if 'filter not found' in str(message):
                             # sometimes for unknown reason filter drops on eth node, so recreate it
                             self.logger.info('work_filter recreated')
-                            self.worker_node_container.events.StateChanged.reset()
-                            self.worker_node_container.events.StateChanged.uninstall()
                             event_filter = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
                 else:
                     self.logger.info('Exception on worker event handler.')
@@ -312,7 +317,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
     def job_filter_thread_loop(self, event_filter, pool_interval):
         while True:
             try:
-                for event in event_filter.get_new_entries(): # get_all_entries()
+                for event in event_filter.get_new_entries():  # get_all_entries()
                     self.on_cognitive_job_state_change(event)
                 time.sleep(pool_interval)
             except Exception as ex:
@@ -323,8 +328,6 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                         if 'filter not found' in str(message):
                             # sometimes for unknown reason filter drops on eth node, so recreate it
                             self.logger.info('job_filter recreated')
-                            self.job_container.events.StateChanged.reset()
-                            self.job_container.events.StateChanged.uninstall()
                             event_filter = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
                 else:
                     self.logger.info('Exception on job event handler.')
@@ -337,6 +340,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         self.logger.info("Contract Cognitive job changed its state from %s to %s",
                          job_state_table[state_old].name,
                          job_state_table[state_new].name)
+        # strange behavior of states (on TESLA MACHINE)
         self.job_state_machine.state = state_new
 
 
@@ -344,6 +348,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 # Worker node delegate methods
 # ----------------------------------------------------------------------------------------------------------
     def create_cognitive_job(self):
+        self.logger.info('CALL - create_cognitive_job')
         if self.job_container:
             return
         job_address = self.worker_node_container.call().activeJob()
@@ -358,6 +363,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             self.logger.error("Error initializing cognitive job for address %s", job_address)
 
     def start_validating(self):
+        self.logger.info('CALL - start_validating')
         self.logger.info("Starting validating data")
         try:
             processor = self.init_processor()
@@ -369,6 +375,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         processor.load()
 
     def start_computing(self):
+        self.logger.info('CALL - start_computing')
         self.logger.info("Starting computing cognitive job")
         if not self.processors:  # if processors is empty init it
             try:
@@ -389,7 +396,8 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         tx_status = 0
         while tx_status == 0:
             try:
-                nonce = self.worker_node_container.web3.eth.getTransactionCount(self.manager.eth_worker_node_account)
+                nonce = self.worker_node_container.web3.eth.getTransactionCount(self.manager.eth_worker_node_account,
+                                                                                "pending")
                 raw_transaction = None
                 if name in 'alive':
                     raw_transaction = self.worker_node_container.functions.alive() \
@@ -435,9 +443,10 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                     self.logger.info('Waiting for receipt...')
                     transaction_receipt = self.worker_node_container.web3.eth.waitForTransactionReceipt(tx_hash,
                                                                                                         timeout=300)
-                    self.logger.info('TX_RECEIPT : ' + str(transaction_receipt))
-                    self.logger.info('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
-                    tx_status = transaction_receipt['status']
+                    if transaction_receipt:
+                        self.logger.info('TX_RECEIPT : ' + str(transaction_receipt))
+                        self.logger.info('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
+                        tx_status = transaction_receipt['status']
                 else:
                     self.logger.info('Unknown state transaction. Skip.')
                     tx_status = 1  # for unknown state transaction reason
@@ -477,7 +486,21 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         self.state_transact('provideResults', results_file)
 
     def processor_computing_failure(self, processor_id: Union[str, None]):
-        self.logger.critical("Can't complete computing, exiting in order to reboot and try to repeat the work")
-        sys.exit(1)
+        self.logger.critical("Can't complete computing, exiting in order to reboot and try to repeat the work.")
+        self.restart_pynode()
+
+# ----------------------------------------------------------------------------------------------------------
+# System methods
+# ----------------------------------------------------------------------------------------------------------
+    def restart_pynode(self):
+        """ Restart pynode due keras or tensorflow exception """
+        # TODO add parameter for translate restart count
+        os.chdir(self.manager.primary_wd)
+        script = os.path.join(self.manager.primary_wd, 'pynode.py')
+        subprocess.Popen(
+            [sys.executable, script, '-p ' + self.manager.vault_key])
+        sys.exit()
+
+
 
 

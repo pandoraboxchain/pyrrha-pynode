@@ -36,7 +36,8 @@ def run_pynode():
         return
 
     # Remove the following line in order to put the app into a daemon mode (running on the background)
-    broker.join()
+    if broker.is_alive():
+        broker.join()
 
 
 # -------------------------------------
@@ -175,6 +176,7 @@ def main(argv):
     if not results.vault_key:
         print('Vault key is necessary for launch (use -p key for provide if)')
         return
+    manager.primary_wd = os.getcwd()
     manager.vault_key = results.vault_key
     # -------------------------------------
     # launch pynode

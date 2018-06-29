@@ -84,7 +84,7 @@ def process_create_worker_contract():
     if MainModel.remove_flag is False:
         print('Transact for creation worker node contract')
         try:
-            nonce = connector.eth.getTransactionCount(MainModel.new_worker_account)
+            nonce = connector.eth.getTransactionCount(MainModel.new_worker_account, "pending")
             raw_transaction = contract.functions.createWorkerNode() \
                 .buildTransaction({
                     'from': MainModel.new_worker_account,
@@ -130,7 +130,7 @@ def process_create_worker_contract():
 def filter_thread_loop(event_filter, poll_interval):
     while True:
         try:
-            print('.')  # print thread alive (current sleep 2sec)
+            # print('.')  # print thread alive (current sleep 2sec)
             for event in event_filter.get_all_entries():
                 on_worker_node_created(event)
             time.sleep(poll_interval)
