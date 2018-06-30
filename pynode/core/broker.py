@@ -4,6 +4,7 @@ import json
 import time
 import os
 import subprocess
+import threading
 
 
 from threading import Thread
@@ -22,7 +23,6 @@ from core.job.cognitive_job import CognitiveJob
 
 from core.patterns.singleton import Singleton
 from core.patterns.pynode_logger import LogSocketHandler
-from core.patterns.exceptions import CriticalTransactionError
 
 from core.processor.processor import Processor, ProcessorDelegate
 
@@ -130,11 +130,13 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                                                         address=self.node,
                                                         contract=self.manager.eth_worker_contract)
             # bind worker node states listener thread
-            filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
-            self.worker_node_event_thread = Thread(target=self.worker_filter_thread_loop,
-                                                   args=(filter_on_worker, 2),
-                                                   daemon=True)
-            self.worker_node_event_thread.start()
+            if not self.worker_node_event_thread:
+                filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
+                self.worker_node_event_thread = Thread(target=self.worker_filter_thread_loop,
+                                                       args=(filter_on_worker, 2),
+                                                       daemon=True)
+            if not self.worker_node_event_thread.is_alive():
+                self.worker_node_event_thread.start()
             status = self.worker_node_event_thread.is_alive()
             self.logger.info('Event listener for worker node creation startup success, alive : ' + str(status))
             self.logger.info('Worker node state event thread listener initialize success')
@@ -181,11 +183,13 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                          + str(current_job_state))
         self.jobs[self.job_address] = self.job_container
 
-        filter_on_job = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
-        self.job_state_event_thread = Thread(target=self.job_filter_thread_loop,
-                                             args=(filter_on_job, 2),
-                                             daemon=True)
-        self.job_state_event_thread.start()
+        if not self.job_state_event_thread:  # if job state thread is not exist initialize it
+            filter_on_job = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
+            self.job_state_event_thread = Thread(target=self.job_filter_thread_loop,
+                                                 args=(filter_on_job, 2),
+                                                 daemon=True)
+        if not self.job_state_event_thread.is_alive():  # if state thread created and not started
+            self.job_state_event_thread.start()
         status = self.job_state_event_thread.is_alive()
         self.logger.info('Event listener for job states creation startup success, alive : ' + str(status))
         self.logger.info('Cognitive job state event thread listener initialize success')
@@ -305,6 +309,9 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                     self.logger.info(ex.args)
 
     def on_worker_node_state_change(self, event: dict):
+        # only for debug
+        self.logger.info('ACTIVE THREADS COUNT : ' + str(threading.active_count()))
+        #
         worker_state_table = self.worker_node_state_machine.state_table
         state_old = event['args']['oldState']
         state_new = event['args']['newState']
@@ -349,6 +356,8 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 # ----------------------------------------------------------------------------------------------------------
     def create_cognitive_job(self):
         self.logger.info('CALL - create_cognitive_job')
+        # if job_container currently initialized skip initialization (optimize job initialization)
+        # job container assigns to None value on job complete
         if self.job_container:
             return
         job_address = self.worker_node_container.call().activeJob()
@@ -447,13 +456,14 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                         self.logger.info('TX_RECEIPT : ' + str(transaction_receipt))
                         self.logger.info('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
                         tx_status = transaction_receipt['status']
+                    time.sleep(2)  # wait some time after transaction (nonce refreshing on node)
                 else:
                     self.logger.info('Unknown state transaction. Skip.')
                     tx_status = 1  # for unknown state transaction reason
             except Exception as ex:
                 self.logger.error("Error executing %s transaction: %s", name, type(ex))
                 self.logger.error(ex.args)
-                raise CriticalTransactionError(name)
+                # raise CriticalTransactionError(name) (commented for re send transaction try)
         return
 
 # ----------------------------------------------------------------------------------------------------------
@@ -483,6 +493,9 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         self.logger.info('Providing results')
         self.logger.info('Result file address : ' + results_file)
         self.manager.set_complete_reset()
+        self.processors = {}  # re init processors list (while node working on one job per iteration)
+        self.job_container = None  # clean up job container for prevent calculating same data on next job
+        self.logger.info('Job container cleaned up')
         self.state_transact('provideResults', results_file)
 
     def processor_computing_failure(self, processor_id: Union[str, None]):
@@ -498,7 +511,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         os.chdir(self.manager.primary_wd)
         script = os.path.join(self.manager.primary_wd, 'pynode.py')
         subprocess.Popen(
-            [sys.executable, script, '-p ' + self.manager.vault_key])
+            [sys.executable, script, '-p' + self.manager.vault_key + ''])
         sys.exit()
 
 

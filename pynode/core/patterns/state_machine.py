@@ -57,17 +57,18 @@ class StateMachine:
     @state.setter
     def state(self, to_state: State):
         from_state = self.__state
-        # sometimes strange state changing income (validate it here)
-        # self.logger.info('from : ' + str(from_state) + " ---> to :" + str(to_state))
-        # TODO conduct a more in-depth study of the states
         if from_state is not None:
+            if self.state_table[from_state].name == self.state_table[to_state].name:
+                self.logger.error('Node is currently in state %s return.', self.state_table[to_state].name)
+                # some times on transfer state change calls several times from ETH event filters
+                # skip double transfer state
+                return
             if to_state not in self.state_table[from_state].transits_to:
                 if self.force_rules:
                     # uncomment for test launch
                     raise StateTransitionError(from_state=from_state, to_state=to_state)
-                    # logging.error("Unregistered state transition from %s to %s",
-                    #                self.state_table[from_state].name, self.state_table[to_state].name)
-                    # return
+                    #self.logger.error("Unregistered state transition from %s to %s",
+                    #                  self.state_table[from_state].name, self.state_table[to_state].name)
                 else:
                     self.logger.info("Unregistered state transition from %s to %s",
                                      self.state_table[from_state].name, self.state_table[to_state].name)

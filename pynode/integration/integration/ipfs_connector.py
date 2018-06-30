@@ -32,7 +32,7 @@ class IpfsConnector(IpfsAbstract):
                 self.logger.info("Search IPFS for data : " + file_address)
                 start = time.time()
                 try:
-                    response = requests.get(host_remote + file_address, stream=True, timeout=30)
+                    response = requests.get(host_remote + file_address, stream=True, timeout=120)
                 except Exception as ex:
                     if isinstance(ex.args, tuple):
                         str_exception = ex.args[0].args[0]

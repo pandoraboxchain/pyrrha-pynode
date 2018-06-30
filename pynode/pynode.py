@@ -208,6 +208,7 @@ def main(argv):
     print("Ethereum use                 : " + str(results.ethereum_use))
     print("Ethereum host                : " + str(eth_host))
     print("Worker node account owner    : " + str(eth_worker_node_account))
+    print("Use vault password           : " + str(manager.vault_key))
     print("Primary contracts addresses")
     print("Pandora main contract        : " + str(pandora_address))
     print("Worker node contract         : " + str(worker_contract_address))

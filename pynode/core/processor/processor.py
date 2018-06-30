@@ -100,7 +100,7 @@ class Processor(Thread):
         if self.__load() is False:
             self.delegate.processor_computing_failure(self.id)
             return
-
+        self.logger.info('Current computing mode : ' + self.dataset.process)
         try:
             if self.dataset.process == 'predict':
                 # return prediction result
@@ -133,6 +133,7 @@ class Processor(Thread):
         # need to return file address
         ipfs_result_address = self.ipfs_api.upload_file(self.results_file)
         self.delegate.processor_computing_complete(self.id, ipfs_result_address)
+        self.dataset.process = None
         self.clean_up()
 
     def clean_up(self):
