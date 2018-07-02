@@ -118,11 +118,12 @@ class Processor(Thread):
         self.commit_computing_result(out)
 
     def commit_computing_result(self, out):
-        self.results_file = str(self.manager.job_contract_address) + '.out.hdf5'
+        self.results_file = str(self.manager.job_contract_address) + '.out.h5'
         try:
             if self.dataset.process == 'predict':
                 h5w = h5py.File(self.results_file, 'w')
                 h5w.create_dataset('dataset', data=out)
+                h5w.close()
             elif self.dataset.process == 'fit':
                 out.save_weights(self.results_file)
         except Exception as ex:

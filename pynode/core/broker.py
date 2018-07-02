@@ -4,7 +4,6 @@ import json
 import time
 import os
 import subprocess
-import threading
 
 
 from threading import Thread
@@ -71,6 +70,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         self.job_container = None
         self.job_state_machine = None
         self.job_state_event_thread = None
+        self.job_state_thread_flag = True
 
         # Init empty jobs and processor
         self.jobs = {}
@@ -183,13 +183,12 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                          + str(current_job_state))
         self.jobs[self.job_address] = self.job_container
 
-        if not self.job_state_event_thread:  # if job state thread is not exist initialize it
-            filter_on_job = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
-            self.job_state_event_thread = Thread(target=self.job_filter_thread_loop,
-                                                 args=(filter_on_job, 2),
-                                                 daemon=True)
-        if not self.job_state_event_thread.is_alive():  # if state thread created and not started
-            self.job_state_event_thread.start()
+        self.job_state_thread_flag = True
+        filter_on_job = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
+        self.job_state_event_thread = Thread(target=self.job_filter_thread_loop,
+                                             args=(filter_on_job, 2),
+                                             daemon=True)
+        self.job_state_event_thread.start()
         status = self.job_state_event_thread.is_alive()
         self.logger.info('Event listener for job states creation startup success, alive : ' + str(status))
         self.logger.info('Cognitive job state event thread listener initialize success')
@@ -290,28 +289,50 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 # ----------------------------------------------------------------------------------------------------------
     # worker node state filter thread loop
     def worker_filter_thread_loop(self, event_filter, poll_interval):
+        past_block = self.worker_node_container.web3.eth.getBlock('latest')
+        past_block_number = past_block.number
         while True:
             try:
-                for event in event_filter.get_new_entries():  # get_all_entries()
-                    self.on_worker_node_state_change(event)
-                time.sleep(poll_interval)
+                current_block = self.worker_node_container.web3.eth.getBlock('latest')
+                current_block_number = current_block.number
+                diff = current_block_number - past_block_number
+                if diff == 1:
+                    dynamic_poll_interval = current_block.timestamp - past_block.timestamp
+                    poll_interval = dynamic_poll_interval - 0.5
+                    self.logger.info('POLL_INTRVAL : ' + str(dynamic_poll_interval) +
+                                     ' sleep_time : ' + str(poll_interval) +
+                                     ' block_number : ' + str(current_block_number))
+                    past_block = self.worker_node_container.web3.eth.getBlock('latest')
+                    past_block_number = past_block.number
+
+                if event_filter:
+                    # skip events listening by time  previous block mining (most cheapest way)
+                    event_index = 0
+                    for event in event_filter.get_new_entries():
+                        event_index += 1
+                        self.on_worker_node_state_change(event)
+                    if event_index > 0:
+                        self.logger.info('Events count : ' + str(event_index))
+                    time.sleep(poll_interval)
+                else:
+                    self.logger.info('work_filter recreated')
+                    event_filter = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
             except Exception as ex:
-                # https://github.com/ethereum/web3.py/issues/354
+                self.logger.info('EXCEPTION !' + str(ex.args))
                 if isinstance(ex.args, tuple):
                     if len(ex.args) > 0:
                         message = ex.args[0]
+                        # https://github.com/ethereum/web3.py/issues/354
                         if 'filter not found' in str(message):
                             # sometimes for unknown reason filter drops on eth node, so recreate it
                             self.logger.info('work_filter recreated')
                             event_filter = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
+                            # after filter recreated neeed to drop all incoming states to latest block
                 else:
                     self.logger.info('Exception on worker event handler.')
                     self.logger.info(ex.args)
 
     def on_worker_node_state_change(self, event: dict):
-        # only for debug
-        self.logger.info('ACTIVE THREADS COUNT : ' + str(threading.active_count()))
-        #
         worker_state_table = self.worker_node_state_machine.state_table
         state_old = event['args']['oldState']
         state_new = event['args']['newState']
@@ -322,23 +343,18 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 
     # job state filter loop
     def job_filter_thread_loop(self, event_filter, pool_interval):
-        while True:
+        while self.job_state_thread_flag:
             try:
-                for event in event_filter.get_new_entries():  # get_all_entries()
-                    self.on_cognitive_job_state_change(event)
-                time.sleep(pool_interval)
-            except Exception as ex:
-                # https://github.com/ethereum/web3.py/issues/354
-                if isinstance(ex.args, tuple):
-                    if len(ex.args) > 0:
-                        message = ex.args[0]
-                        if 'filter not found' in str(message):
-                            # sometimes for unknown reason filter drops on eth node, so recreate it
-                            self.logger.info('job_filter recreated')
-                            event_filter = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
+                if event_filter:
+                    for event in event_filter.get_new_entries():
+                        self.on_cognitive_job_state_change(event)
+                    time.sleep(pool_interval)
                 else:
-                    self.logger.info('Exception on job event handler.')
-                    self.logger.info(ex.args)
+                    # https://github.com/ethereum/web3.py/issues/354
+                    event_filter = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
+            except Exception as ex:
+                self.logger.info('Exception on job event handler.')
+                self.logger.info(ex.args)
 
     def on_cognitive_job_state_change(self, event: dict):
         job_state_table = self.job_state_machine.state_table
@@ -359,12 +375,11 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         # if job_container currently initialized skip initialization (optimize job initialization)
         # job container assigns to None value on job complete
         if self.job_container:
+            self.logger.info('Job container inited. return')
             return
         job_address = self.worker_node_container.call().activeJob()
         if self.check_job_address(job_address) is None:
             self.logger.info("Job address is empty, cant determinate job")
-            return
-        if job_address in self.jobs:
             return
         self.logger.info("Initializing cognitive job contract for address %s", job_address)
         self.job_address = job_address
@@ -463,7 +478,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             except Exception as ex:
                 self.logger.error("Error executing %s transaction: %s", name, type(ex))
                 self.logger.error(ex.args)
-                # raise CriticalTransactionError(name) (commented for re send transaction try)
+                time.sleep(5)
         return
 
 # ----------------------------------------------------------------------------------------------------------
@@ -492,9 +507,12 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         self.logger.info('Processor computing complete.')
         self.logger.info('Providing results')
         self.logger.info('Result file address : ' + results_file)
+
         self.manager.set_complete_reset()
         self.processors = {}  # re init processors list (while node working on one job per iteration)
         self.job_container = None  # clean up job container for prevent calculating same data on next job
+        self.job_state_thread_flag = False  # finalize job event listener loop
+        self.job_state_event_thread = None
         self.logger.info('Job container cleaned up')
         self.state_transact('provideResults', results_file)
 
