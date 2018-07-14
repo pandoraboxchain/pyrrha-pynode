@@ -98,8 +98,7 @@ class TestJob(unittest.TestCase, CognitiveJobDelegate):
         self.reset_flags()
         cognitive_job = CognitiveJob(delegate=self, contract_container='')
         cognitive_job.state = 1
-        with self.assertRaises(Exception):
-            cognitive_job.state = 1
+        assert cognitive_job.state == 1
 
     # true
     def test_job_state_1_to_2(self):
@@ -178,8 +177,7 @@ class TestJob(unittest.TestCase, CognitiveJobDelegate):
         self.reset_flags()
         cognitive_job = CognitiveJob(delegate=self, contract_container='')
         cognitive_job.state = 2
-        with self.assertRaises(Exception):
-            cognitive_job.state = 2
+        assert cognitive_job.state == 2
 
     # false
     def test_job_state_2_to_3(self):
@@ -269,8 +267,7 @@ class TestJob(unittest.TestCase, CognitiveJobDelegate):
         self.reset_flags()
         cognitive_job = CognitiveJob(delegate=self, contract_container='')
         cognitive_job.state = 3
-        with self.assertRaises(Exception):
-            cognitive_job.state = 3
+        assert cognitive_job.state == 3
 
     # true
     def test_job_state_3_to_4(self):
@@ -363,8 +360,7 @@ class TestJob(unittest.TestCase, CognitiveJobDelegate):
         self.reset_flags()
         cognitive_job = CognitiveJob(delegate=self, contract_container='')
         cognitive_job.state = 4
-        with self.assertRaises(Exception):
-            cognitive_job.state = 4
+        assert cognitive_job.state == 4
 
     # false
     def test_job_state_4_to_5(self):
@@ -451,8 +447,7 @@ class TestJob(unittest.TestCase, CognitiveJobDelegate):
         self.reset_flags()
         cognitive_job = CognitiveJob(delegate=self, contract_container='')
         cognitive_job.state = 5
-        with self.assertRaises(Exception):
-            cognitive_job.state = 5
+        assert cognitive_job.state == 5
 
     # true
     def test_job_state_5_to_6(self):
@@ -531,8 +526,7 @@ class TestJob(unittest.TestCase, CognitiveJobDelegate):
         self.reset_flags()
         cognitive_job = CognitiveJob(delegate=self, contract_container='')
         cognitive_job.state = 6
-        with self.assertRaises(Exception):
-            cognitive_job.state = 6
+        assert cognitive_job.state == 6
 
     # false
     def test_job_state_6_to_7(self):
@@ -631,8 +625,7 @@ class TestJob(unittest.TestCase, CognitiveJobDelegate):
         self.reset_flags()
         cognitive_job = CognitiveJob(delegate=self, contract_container='')
         cognitive_job.state = 7
-        with self.assertRaises(Exception):
-            cognitive_job.state = 7
+        assert cognitive_job.state == 7
         # validate callbacks
         assert self.terminate_job_flag == 1
 
