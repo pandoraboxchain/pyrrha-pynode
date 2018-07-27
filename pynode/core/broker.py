@@ -288,6 +288,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 # Broker listeners for state table change states processing
 # ----------------------------------------------------------------------------------------------------------
     # worker node state filter thread loop
+    # TODO sometimes thread_loop is stop (make different log file for loop state monitoring)
     def worker_filter_thread_loop(self, event_filter, poll_interval):
         past_block = self.worker_node_container.web3.eth.getBlock('latest')
         past_block_number = past_block.number
@@ -328,6 +329,12 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                             self.logger.info('work_filter recreated')
                             event_filter = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
                             # after filter recreated neeed to drop all incoming states to latest block
+                        else:
+                            self.logger.info('Exception on worker event handler.')
+                            self.logger.info(ex.args)
+                    else:
+                        self.logger.info('Exception on worker event handler.')
+                        self.logger.info(ex.args)
                 else:
                     self.logger.info('Exception on worker event handler.')
                     self.logger.info(ex.args)

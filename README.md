@@ -39,6 +39,10 @@ pip install crypto
 pip install pycryptodome==3.6.1
 ```
 
+* On Windows sometimes web3 cant import Crypto.Random
+    - solution :
+    Check for crypto package name and if its 'crypto' rename it to 'Crypto'
+
 ## IPFS problems
 
 * The local ipfs daemon does not host a locally added file
