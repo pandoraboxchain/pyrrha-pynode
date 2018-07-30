@@ -1,10 +1,9 @@
 import logging
 
-from typing import Callable
 from abc import ABCMeta, abstractmethod
 
 from core.patterns.state_machine import StateTableEntry
-from core.patterns.stateful_contract import StatefulContract
+from core.node.stateful_contract import StatefulContract
 
 
 class WorkerNodeDelegate(metaclass=ABCMeta):
@@ -127,7 +126,7 @@ class WorkerNode(StatefulContract):
 
     def on_enter_state_assigned(self, from_state: int):
         self.delegate.create_cognitive_job()
-        if self.delegate.job_address is not None:
+        if self.delegate.job_id_hex is not None:
             self.delegate.state_transact('acceptAssignment')
 
     def on_exit_state_assigned(self, to_state: int):

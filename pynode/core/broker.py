@@ -59,6 +59,10 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 
         # Init empty container for pandora
         self.pandora_container = None
+        # Init empty container for cognitive job manager
+        self.job_controller = None
+        self.job_controller_address = None
+        self.job_controller_container = None
 
         # Init empty containers for worker node
         self.worker_node_container = None
@@ -66,7 +70,8 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         self.worker_node_event_thread = None
 
         # Init empty containers for job
-        self.job_address = None
+        self.job_id_hex = None
+        #self.job_address = None             # ?
         self.job_container = None
         self.job_state_machine = None
         self.job_state_event_thread = None
@@ -95,6 +100,14 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                                                             contract_address=self.pandora,
                                                             contract_abi=self.manager.eth_pandora_contract)
             self.logger.info('Pandora contract initialized success on address : ' + self.pandora)
+
+            self.job_controller_address = self.pandora_container.call().jobController()
+            self.logger.info('Pandora cognitive job controller address : ' + self.pandora)
+            self.job_controller_container = self.eth.init_contract(server_address=self.manager.eth_host,
+                                                                   contract_address=self.job_controller_address,
+                                                                   contract_abi=self.manager.eth_job_controller_contract)
+            self.logger.info('Pandora cognitive job controller initialize success')
+
             self.worker_node_container = self.eth.init_contract(server_address=self.manager.eth_host,
                                                                 contract_address=self.node,
                                                                 contract_abi=self.manager.eth_worker_contract)
@@ -169,29 +182,25 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 # ----------------------------------------------------------------------------------------------------------
     # job address is necessary ADD it to method call parameters
     def init_cognitive_job(self) -> bool:
-        self.manager.job_contract_address = self.job_address
-        self.job_container = self.eth.init_contract(server_address=self.manager.eth_host,
-                                                    contract_address=self.job_address,
-                                                    contract_abi=self.manager.eth_cognitive_job_contract)
-        self.logger.info('Job contract initialized success on address : ' + self.job_address)
-        self.job_state_machine = CognitiveJob(contract_container=self.job_container,
-                                              delegate=self,
-                                              address=self.job_address,
-                                              contract=self.manager.eth_cognitive_job_contract)
-        current_job_state = self.job_state_machine.process_state()
-        self.logger.info('Cognition job state machine initialized success with state : '
-                         + str(current_job_state))
-        self.jobs[self.job_address] = self.job_container
+        if self.job_id_hex not in self.jobs:  # to avoid double init
+            self.job_state_machine = CognitiveJob(job_controller_container=self.job_controller_container,
+                                                  delegate=self)
+            current_job_state = self.job_state_machine.process_state(job_id_hex=self.job_id_hex)
+            self.logger.info('Cognition job state machine initialized success with state : '
+                             + str(current_job_state))
+            self.jobs[self.job_id_hex] = self.job_id_hex  # set job index to fobs list
 
-        self.job_state_thread_flag = True
-        filter_on_job = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
-        self.job_state_event_thread = Thread(target=self.job_filter_thread_loop,
-                                             args=(filter_on_job, 2),
-                                             daemon=True)
-        self.job_state_event_thread.start()
-        status = self.job_state_event_thread.is_alive()
-        self.logger.info('Event listener for job states creation startup success, alive : ' + str(status))
-        self.logger.info('Cognitive job state event thread listener initialize success')
+            # job state loop init
+            self.job_state_thread_flag = True
+            filter_on_job = self.job_controller_container.events.JobStateChanged.createFilter(fromBlock='latest')
+            self.job_state_event_thread = Thread(target=self.job_filter_thread_loop,
+                                                 args=(filter_on_job, 2),
+                                                 daemon=True)
+            self.job_state_event_thread.start()
+            status = self.job_state_event_thread.is_alive()
+            self.logger.info('Event listener for job states on job controller creation startup success, alive : '
+                             + str(status))
+            self.logger.info('Cognitive job state event thread listener initialize success')
         return True
 
     # TODO for multiprocess cognition need to rebuild processor init flow
@@ -200,13 +209,13 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         # prepare processor for calculating data
         if self.ipfs is not None:
             # init job container if empty
-            if not self.job_container:
-                self.job_address = self.worker_node_container.call().activeJob()
+            if not self.job_id_hex:
+                self.job_id_hex = self.worker_node_container.web3.toHex(self.worker_node_container.call().activeJob())
                 self.init_cognitive_job()
 
             try:
-                kernel_address = self.job_container.call().kernel()
-                dataset_address = self.job_container.call().dataset()
+                kernel_address = self.job_controller_container.call().getCognitiveJobDetails(self.job_id_hex)[0]
+                dataset_address = self.job_controller_container.call().getCognitiveJobDetails(self.job_id_hex)[1]
             except Exception as ex:
                 self.logger.error("Exception initializing job internal contract")
                 self.logger.error(ex.args)
@@ -233,11 +242,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             self.logger.info('Dataset ipfs address : ' + str(dataset_ipfs_address))
 
             # determinate batch for current job
-            job = self.jobs[self.job_address]
-            workers = []
-            workers_count = job.call().activeWorkersCount()
-            for w in range(0, workers_count):
-                workers.append(job.call().activeWorkers(w).lower())
+            workers = self.job_controller_container.call().getCognitiveJobDetails(self.job_id_hex)[4]
             batch = None
             for idx, w in enumerate(workers):
                 if self.node.lower() == w.lower():
@@ -246,6 +251,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                     break
             if batch is None:
                 raise Exception("Can't determine this node batch number")
+
             # prepare ipfs
             self.logger.info('Start loading files data...')
             self.ipfs.connect(server=self.ipfs_server,
@@ -258,7 +264,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             self.ipfs.download_file(dataset_ipfs_address.decode("utf-8"))
             self.logger.info('Dataset datafile download success...')
 
-            processor_id = '%s:%s' % (self.node, self.job_address)
+            processor_id = '%s:%s' % (self.node, self.job_id_hex)
             # processor initialization
             processor = Processor(ipfs_api=self.ipfs,
                                   processor_id=processor_id,
@@ -276,13 +282,13 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             info = json.load(json_file)
         return info
 
-    @staticmethod
-    def check_job_address(job_address: str) -> str:
-        result = job_address
+    def check_job_id(self, job_address: str) -> str:
+        result_hex = self.worker_node_container.web3.toHex(job_address)
+        job_address = result_hex
         trimmed_address = job_address.replace('0', '')
         if trimmed_address == 'x':
-            result = None
-        return result
+            result_hex = None
+        return result_hex
 
 # ----------------------------------------------------------------------------------------------------------
 # Broker listeners for state table change states processing
@@ -384,14 +390,14 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         if self.job_container:
             self.logger.info('Job container inited. return')
             return
-        job_address = self.worker_node_container.call().activeJob()
-        if self.check_job_address(job_address) is None:
-            self.logger.info("Job address is empty, cant determinate job")
+        job_id = self.worker_node_container.call().activeJob()
+        if self.check_job_id(job_id) is None:
+            self.logger.info("Job ID is invalid, cant determinate job")
             return
-        self.logger.info("Initializing cognitive job contract for address %s", job_address)
-        self.job_address = job_address
+        self.job_id_hex = self.worker_node_container.web3.toHex(job_id)
+        self.logger.info("Initializing cognitive job contract for ID %s", self.job_id_hex)
         if self.init_cognitive_job() is False:
-            self.logger.error("Error initializing cognitive job for address %s", job_address)
+            self.logger.error("Error initializing cognitive job for ID %s", self.job_id_hex)
 
     def start_validating(self):
         self.logger.info('CALL - start_validating')
