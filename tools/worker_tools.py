@@ -26,6 +26,7 @@ class MainModel:
     pandora_abi_path = None
     pandora_abi = None
     remove_flag = False
+    current_worker_contract = None
 
     new_worker_account = None
     new_worker_account_vault_pass = None
@@ -55,31 +56,57 @@ def process_create_worker_contract():
     contract = connector.eth.contract(address=connector.toChecksumAddress(MainModel.pandora_contract_address),
                                       abi=MainModel.pandora_abi)
 
-    # for provide possibility use current created worker node contract with vault
-    # provide vault recreation before account balance validate
-    MainModel.new_worker_account_p_key = obtain_private_key()
-    MainModel.new_worker_account_vault_pass = obtain_local_password()
-    vault_result = create_vault(MainModel.new_worker_account_vault_pass,
-                                MainModel.new_worker_account,
-                                MainModel.new_worker_account_p_key)
-    if not vault_result:
-        print('Unable to create vault.')
-        return
+    if MainModel.remove_flag is False:
+        # -------------------------
+        # On Create() logic start
+        # -------------------------
+        # for provide possibility use current created worker node contract with vault
+        # provide vault recreation before account balance validate
+        MainModel.new_worker_account_p_key = obtain_private_key()
+        MainModel.new_worker_account_vault_pass = obtain_local_password()
+        vault_result = create_vault(MainModel.new_worker_account_vault_pass,
+                                    MainModel.new_worker_account,
+                                    MainModel.new_worker_account_p_key)
+        if not vault_result:
+            print('Unable to create vault.')
+            return
 
-    account_balance = connector.eth.getBalance(MainModel.new_worker_account)
-    account_balance_eth = Web3.fromWei(account_balance, 'ether')
-    if account_balance_eth < 0.5:
-        print('For creating worker node account your need to spend 0.005 ETH and 0.5 ETH need for management node sates')
-        print('If your currently create worker node contract, you can try start pynode with current configuration')
-        print('Unable to create worker contract. Exit.')
-        return
+        account_balance = connector.eth.getBalance(MainModel.new_worker_account)
+        account_balance_eth = Web3.fromWei(account_balance, 'ether')
+        if account_balance_eth < 0.5:
+            print('For creating worker node account your need to spend 0.005 ETH and 0.5 ETH need for management node')
+            print('If your currently create worker node contract, you can try start pynode with current configuration')
+            print('Unable to create worker contract. Exit.')
+            return
 
-    # for performing test ask not from latest block
-    filter_on_worker = contract.events.WorkerNodeCreated.createFilter(fromBlock='latest')
-    worker = Thread(target=filter_thread_loop, args=(filter_on_worker, 2), daemon=False)
-    worker.start()
-    status = worker.is_alive()
-    print('Event listener for worker node creation startup success, alive : ' + str(status))
+            # for performing test ask not from latest block
+            filter_on_worker = contract.events.WorkerNodeCreated.createFilter(fromBlock='latest')
+            worker = Thread(target=filter_thread_loop, args=(filter_on_worker, 2), daemon=False)
+            worker.start()
+            status = worker.is_alive()
+            print('Event listener for worker node creation startup success, alive : ' + str(status))
+        # -------------------------
+        # On Create() logic finish
+        # -------------------------
+    else:
+        # -------------------------
+        # On Delete() logic start
+        # -------------------------
+            print('Deletion is FORCE operation, be sure of their actions.')
+            MainModel.new_worker_account_p_key = obtain_private_key()
+            print('Connection success, check provided customer account address')
+            contract = connector.eth.contract(address=connector.toChecksumAddress(MainModel.pandora_contract_address),
+                                              abi=MainModel.pandora_abi)
+
+            # for performing test ask not from latest block
+            filter_on_worker = contract.events.WorkerNodeDestroyed.createFilter(fromBlock='latest')
+            worker = Thread(target=filter_thread_loop, args=(filter_on_worker, 2), daemon=False)
+            worker.start()
+            status = worker.is_alive()
+            print('Event listener for worker node destroy startup success, alive : ' + str(status))
+        # -------------------------
+        # On Delete() logic finish
+        # -------------------------
 
     if MainModel.remove_flag is False:
         print('Transact for creation worker node contract')
@@ -106,10 +133,11 @@ def process_create_worker_contract():
         print('Transact for destroy worker node contract')
         try:
             nonce = connector.eth.getTransactionCount(MainModel.new_worker_account)
-            raw_transaction = contract.functions.destroyWorkerNode() \
+            raw_transaction = contract.functions.destroyWorkerNode(MainModel.current_worker_contract) \
                 .buildTransaction({
                     'from': MainModel.new_worker_account,
-                    'nonce': nonce})
+                    'nonce': nonce,
+                    'gas': 44068})
             signed_transaction = connector.eth.account.signTransaction(raw_transaction,
                                                                        MainModel.new_worker_account_p_key)
             MainModel.new_worker_account_p_key = None
@@ -132,34 +160,42 @@ def filter_thread_loop(event_filter, poll_interval):
         try:
             # print('.')  # print thread alive (current sleep 2sec)
             for event in event_filter.get_all_entries():
-                on_worker_node_created(event)
+                on_worker_node_event(event)
             time.sleep(poll_interval)
         except Exception as ex:
             print('Exception on event handler.')
             print(ex.args)
 
 
-def on_worker_node_created(event: dict):
-    try:
-        address = event['args']['workerNode']
-        print("Node creation success address : %s", address)
-        print("Storing worker address to config file")
-        config = ConfigParser()
-        config.read('../pynode/core/config/pynode.ini')
+def on_worker_node_event(event: dict):
+    if MainModel.remove_flag is False:
+        try:
+            address = event['args']['workerNode']
+            print("Node creation success address : %s", address)
+            print("Storing worker address to config file")
+            config = ConfigParser()
+            config.read('../pynode/core/config/pynode.ini')
 
-        cfg_file = open('../pynode/core/config/pynode.ini', 'w')
-        config.set('Contracts', 'worker_node', str(address))
-        config.set('Account', 'worker_node_account', str(MainModel.new_worker_account))
-        config.write(cfg_file)
-        cfg_file.close()
-    except Exception as ex:
-        print("Exception retrieving worker contract address")
-        print(ex.args)
-    print("Address is stored in default config file on Ethereum section")
-    print("Please save the address in order to avoid losing it")
-    print("Pynode is configured and ready for launch with default parameters and your vault password")
-    MainModel.obtaining_flag = True
-    exit(0)
+            cfg_file = open('../pynode/core/config/pynode.ini', 'w')
+            config.set('Contracts', 'worker_node', str(address))
+            config.set('Account', 'worker_node_account', str(MainModel.new_worker_account))
+            config.write(cfg_file)
+            cfg_file.close()
+        except Exception as ex:
+            print("Exception retrieving worker contract address")
+            print(ex.args)
+        print("Address is stored in default config file on Ethereum section")
+        print("Please save the address in order to avoid losing it")
+        print("Pynode is configured and ready for launch with default parameters and your vault password")
+        MainModel.obtaining_flag = True
+        exit(0)
+    else:
+        try:
+            print(event['args'])
+        except Exception as ex:
+            print("Exception retrieving worker contract deletion event")
+            print(ex.args)
+        pass
 # -------------------------------------------------
 
 
@@ -262,7 +298,7 @@ def main(argv):
                                  (account must be whitelisted for providing this operation,
                                  and must contain about 4ETH on its balance)
                 -r (--remove) - use this flag to destroy worker node contract for your account
-            example >python ./worker_tools.py -a <owner_account_address>
+            example >python ./worker_tools.py -a <owner_account_address> -r
                                   
             Current tool try to import your account and ask for local password and account private key,
             private key will be stored in secured vault and will be used for signing state transactions locally. 
@@ -301,6 +337,7 @@ def main(argv):
         MainModel.eth_host = eth_section['remote']
         MainModel.pandora_abi_path = contract_section['abi_path']
         MainModel.pandora_contract_address = contract_section['pandora']
+        MainModel.current_worker_contract = contract_section['worker_node']
     except Exception as ex:
         print("Error reading config: %s, exiting", type(ex))
 
@@ -312,9 +349,16 @@ def main(argv):
     print('Pandora contract address    : ' + MainModel.pandora_contract_address)
     print('ABI path                    : ' + MainModel.pandora_abi_path)
     print('Action remove               : ' + str(MainModel.remove_flag))
+    print('Current worker contract     : ' + MainModel.current_worker_contract)
     if results:
         MainModel.new_worker_account = results.new_worker_account
-        print('Provide worker contract for account : ' + MainModel.new_worker_account)
+        if not MainModel.remove_flag:
+            print('Provide worker contract for account : ' + MainModel.new_worker_account)
+        else:
+            print('========================= DESTROY =========================')
+            print('Destroy worker contract for account : ' + MainModel.new_worker_account)
+            print('Worker contract address             : ' + MainModel.current_worker_contract)
+            print('========================= DESTROY =========================')
     else:
         print('Provide account address for creating worker contract (use -a (--account) parameter on tool launch)')
         return
@@ -326,9 +370,9 @@ def main(argv):
 # -------------------------------------------------
 
 
-# -------------------------------------
+# -------------------------------------------------
 # read and store contract abi
-# -------------------------------------
+# -------------------------------------------------
 def init_abi_contract() -> bool:
     if os.path.isdir(MainModel.pandora_abi_path):
         if os.path.isfile(MainModel.pandora_abi_path + "Pandora.json"):
@@ -342,9 +386,9 @@ def init_abi_contract() -> bool:
 # -------------------------------------------------
 
 
-# -------------------------------------
+# -------------------------------------------------
 # main launcher
-# -------------------------------------
+# -------------------------------------------------
 if __name__ == "__main__":
     main(sys.argv)
 

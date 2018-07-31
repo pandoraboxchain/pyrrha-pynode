@@ -395,6 +395,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             self.logger.info("Job ID is invalid, cant determinate job")
             return
         self.job_id_hex = self.worker_node_container.web3.toHex(job_id)
+        self.manager.eth_job_id_hex = self.worker_node_container.web3.toHex(job_id)
         self.logger.info("Initializing cognitive job contract for ID %s", self.job_id_hex)
         if self.init_cognitive_job() is False:
             self.logger.error("Error initializing cognitive job for ID %s", self.job_id_hex)

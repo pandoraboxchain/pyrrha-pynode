@@ -25,6 +25,7 @@ class Manager:
     eth_worker = None
     eth_worker_contract = None
     eth_job_controller_contract = None
+    eth_job_id_hex = None
     eth_kernel_contract = None
     eth_dataset_contract = None
     # base global ipfs settings for fast access from any module
