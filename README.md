@@ -36,7 +36,6 @@ pip uninstall pycrypto
 and install it again
 ```sh
 pip install crypto
-pip install pycryptodome==3.6.1
 ```
 
 * On Windows sometimes web3 cant import Crypto.Random
