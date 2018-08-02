@@ -71,7 +71,6 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 
         # Init empty containers for job
         self.job_id_hex = None
-        #self.job_address = None             # ?
         self.job_container = None
         self.job_state_machine = None
         self.job_state_event_thread = None

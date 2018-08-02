@@ -56,6 +56,7 @@ def process_create_worker_contract():
     contract = connector.eth.contract(address=connector.toChecksumAddress(MainModel.pandora_contract_address),
                                       abi=MainModel.pandora_abi)
 
+    worker = Thread()  # assign empty for join
     if MainModel.remove_flag is False:
         # -------------------------
         # On Create() logic start
@@ -151,8 +152,7 @@ def process_create_worker_contract():
             print('Exception while transact destroy worker contract')
             print(ex.args)
             return
-    worker.join()
-    exit(0)
+    return
 
 
 def filter_thread_loop(event_filter, poll_interval):
