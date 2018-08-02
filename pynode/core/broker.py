@@ -5,9 +5,10 @@ import time
 import os
 import subprocess
 
-
 from threading import Thread
 from typing import Union, Callable
+
+from web3.gas_strategies.time_based import medium_gas_price_strategy
 
 from integration.eth_service import EthService
 from integration.integration.eth_connector import EthConnector
@@ -19,10 +20,8 @@ from service.tools.key_tools import KeyTools
 
 from core.node.worker_node import WorkerNode, WorkerNodeDelegate
 from core.job.cognitive_job import CognitiveJob
-
 from core.patterns.singleton import Singleton
 from core.patterns.pynode_logger import LogSocketHandler
-
 from core.processor.processor import Processor, ProcessorDelegate
 
 
@@ -44,7 +43,9 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 
         # Initializing logger object
         self.logger = logging.getLogger("Broker")
+        self.logger.setLevel(logging.INFO)
         self.logger.addHandler(LogSocketHandler.get_instance())
+
         self.manager = Manager.get_instance()
         self.mode = self.manager.launch_mode
 
@@ -94,6 +95,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 # ----------------------------------------------------------------------------------------------------------
     def connect(self) -> bool:
         if self.eth is not None:
+
             # init base contracts containers
             self.pandora_container = self.eth.init_contract(server_address=self.manager.eth_host,
                                                             contract_address=self.pandora,
@@ -111,6 +113,8 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                                                                 contract_address=self.node,
                                                                 contract_abi=self.manager.eth_worker_contract)
             self.logger.info('Worker contract initialized success on address : ' + self.node)
+            self.worker_node_container.web3.eth.setGasPriceStrategy(medium_gas_price_strategy)
+            self.logger.info('Set gas price strategy to -> medium_gas_price_strategy')
 
             # init worker contract owner account
             if self.key_tool.check_vault():
@@ -293,21 +297,31 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 # Broker listeners for state table change states processing
 # ----------------------------------------------------------------------------------------------------------
     # worker node state filter thread loop
-    # TODO sometimes thread_loop is stop (make different log file for loop state monitoring)
+    # TODO sometimes thread_loop is stop need more debug
     def worker_filter_thread_loop(self, event_filter, poll_interval):
         past_block = self.worker_node_container.web3.eth.getBlock('latest')
         past_block_number = past_block.number
+
+        # create logger for threads to file
+        threads_logger = logging.getLogger('threads_logger')
+        threads_logger.setLevel(logging.DEBUG)
+        file_handler = logging.FileHandler("logs/threads.log")
+        file_handler.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(formatter)
+        threads_logger.addHandler(file_handler)
+        threads_logger.debug("THREADS_LOGGER initialized success")
         while True:
             try:
                 current_block = self.worker_node_container.web3.eth.getBlock('latest')
                 current_block_number = current_block.number
                 diff = current_block_number - past_block_number
-                if diff == 1:
+                if diff >= 1:
                     dynamic_poll_interval = current_block.timestamp - past_block.timestamp
-                    poll_interval = dynamic_poll_interval - 0.5
-                    self.logger.info('POLL_INTRVAL : ' + str(dynamic_poll_interval) +
-                                     ' sleep_time : ' + str(poll_interval) +
-                                     ' block_number : ' + str(current_block_number))
+                    poll_interval = dynamic_poll_interval/diff - 0.5  # separate to get time for block
+                    threads_logger.debug('POLL_INTRVAL : ' + str(dynamic_poll_interval) +
+                                         ' sleep_time : ' + str(poll_interval) +
+                                         ' block_number : ' + str(current_block_number))
                     past_block = self.worker_node_container.web3.eth.getBlock('latest')
                     past_block_number = past_block.number
 
@@ -318,31 +332,31 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                         event_index += 1
                         self.on_worker_node_state_change(event)
                     if event_index > 0:
-                        self.logger.info('Events count : ' + str(event_index))
+                        threads_logger.debug('Events count : ' + str(event_index))
                     time.sleep(poll_interval)
                 else:
                     self.logger.info('work_filter recreated')
                     event_filter = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
             except Exception as ex:
-                self.logger.info('EXCEPTION !' + str(ex.args))
+                self.threads_logger.debug('EXCEPTION !' + str(ex.args))
                 if isinstance(ex.args, tuple):
                     if len(ex.args) > 0:
                         message = ex.args[0]
                         # https://github.com/ethereum/web3.py/issues/354
                         if 'filter not found' in str(message):
                             # sometimes for unknown reason filter drops on eth node, so recreate it
-                            self.logger.info('work_filter recreated')
+                            threads_logger.debug('work_filter recreated')
                             event_filter = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
                             # after filter recreated neeed to drop all incoming states to latest block
                         else:
-                            self.logger.info('Exception on worker event handler.')
-                            self.logger.info(ex.args)
+                            threads_logger.debug('Exception on worker event handler.')
+                            threads_logger.debug(ex.args)
                     else:
-                        self.logger.info('Exception on worker event handler.')
-                        self.logger.info(ex.args)
+                        threads_logger.debug('Exception on worker event handler.')
+                        threads_logger.debug(ex.args)
                 else:
-                    self.logger.info('Exception on worker event handler.')
-                    self.logger.info(ex.args)
+                    threads_logger.debug('Exception on worker event handler.')
+                    threads_logger.debug(ex.args)
 
     def on_worker_node_state_change(self, event: dict):
         worker_state_table = self.worker_node_state_machine.state_table
@@ -365,8 +379,8 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                     # https://github.com/ethereum/web3.py/issues/354
                     event_filter = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
             except Exception as ex:
-                self.logger.info('Exception on job event handler.')
-                self.logger.info(ex.args)
+                self.threads_logger.info('Exception on job event handler.')
+                self.threads_logger.info(ex.args)
 
     def on_cognitive_job_state_change(self, event: dict):
         job_state_table = self.job_state_machine.state_table
@@ -538,7 +552,6 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 # ----------------------------------------------------------------------------------------------------------
     def restart_pynode(self):
         """ Restart pynode due keras or tensorflow exception """
-        # TODO add parameter for translate restart count
         os.chdir(self.manager.primary_wd)
         script = os.path.join(self.manager.primary_wd, 'pynode.py')
         subprocess.Popen(
