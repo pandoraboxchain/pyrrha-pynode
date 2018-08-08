@@ -80,12 +80,12 @@ def process_create_worker_contract():
             print('Unable to create worker contract. Exit.')
             return
 
-            # for performing test ask not from latest block
-            filter_on_worker = contract.events.WorkerNodeCreated.createFilter(fromBlock='latest')
-            worker = Thread(target=filter_thread_loop, args=(filter_on_worker, 2), daemon=False)
-            worker.start()
-            status = worker.is_alive()
-            print('Event listener for worker node creation startup success, alive : ' + str(status))
+        # for performing test ask not from latest block
+        filter_on_worker = contract.events.WorkerNodeCreated.createFilter(fromBlock='latest')
+        worker = Thread(target=filter_thread_loop, args=(filter_on_worker, 2), daemon=False)
+        worker.start()
+        status = worker.is_alive()
+        print('Event listener for worker node creation startup success, alive : ' + str(status))
         # -------------------------
         # On Create() logic finish
         # -------------------------
@@ -93,18 +93,18 @@ def process_create_worker_contract():
         # -------------------------
         # On Delete() logic start
         # -------------------------
-            print('Deletion is FORCE operation, be sure of their actions.')
-            MainModel.new_worker_account_p_key = obtain_private_key()
-            print('Connection success, check provided customer account address')
-            contract = connector.eth.contract(address=connector.toChecksumAddress(MainModel.pandora_contract_address),
-                                              abi=MainModel.pandora_abi)
+        print('Deletion is FORCE operation, be sure of their actions.')
+        MainModel.new_worker_account_p_key = obtain_private_key()
+        print('Connection success, check provided customer account address')
+        contract = connector.eth.contract(address=connector.toChecksumAddress(MainModel.pandora_contract_address),
+                                          abi=MainModel.pandora_abi)
 
-            # for performing test ask not from latest block
-            filter_on_worker = contract.events.WorkerNodeDestroyed.createFilter(fromBlock='latest')
-            worker = Thread(target=filter_thread_loop, args=(filter_on_worker, 2), daemon=False)
-            worker.start()
-            status = worker.is_alive()
-            print('Event listener for worker node destroy startup success, alive : ' + str(status))
+        # for performing test ask not from latest block
+        filter_on_worker = contract.events.WorkerNodeDestroyed.createFilter(fromBlock='latest')
+        worker = Thread(target=filter_thread_loop, args=(filter_on_worker, 2), daemon=False)
+        worker.start()
+        status = worker.is_alive()
+        print('Event listener for worker node destroy startup success, alive : ' + str(status))
         # -------------------------
         # On Delete() logic finish
         # -------------------------
@@ -158,7 +158,6 @@ def process_create_worker_contract():
 def filter_thread_loop(event_filter, poll_interval):
     while True:
         try:
-            # print('.')  # print thread alive (current sleep 2sec)
             for event in event_filter.get_all_entries():
                 on_worker_node_event(event)
             time.sleep(poll_interval)
@@ -171,7 +170,7 @@ def on_worker_node_event(event: dict):
     if MainModel.remove_flag is False:
         try:
             address = event['args']['workerNode']
-            print("Node creation success address : %s", address)
+            print("Node creation success address : " + address)
             print("Storing worker address to config file")
             config = ConfigParser()
             config.read('../pynode/core/config/pynode.ini')
@@ -188,14 +187,15 @@ def on_worker_node_event(event: dict):
         print("Please save the address in order to avoid losing it")
         print("Pynode is configured and ready for launch with default parameters and your vault password")
         MainModel.obtaining_flag = True
-        exit(0)
     else:
         try:
             print(event['args'])
+            MainModel.obtaining_flag = True
         except Exception as ex:
             print("Exception retrieving worker contract deletion event")
             print(ex.args)
         pass
+    exit(0)
 # -------------------------------------------------
 
 

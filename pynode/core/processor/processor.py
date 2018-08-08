@@ -52,7 +52,8 @@ class Processor(Thread):
     def prepare(self, kernel_file, dataset_file, batch: int) -> bool:
         try:
             self.kernel = Kernel(kernel_file=kernel_file,
-                                 ipfs_api=self.ipfs_api)
+                                 ipfs_api=self.ipfs_api,
+                                 delegate=self.delegate)
             self.kernel_init_result = self.kernel.init_kernel()
             self.logger.info('Kernel init result : ' + str(self.kernel_init_result))
 

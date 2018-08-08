@@ -1,15 +1,56 @@
+from abc import ABCMeta, abstractmethod
+
 import keras
 import logging
 
 from core.patterns.pynode_logger import LogSocketHandler
 from core.manager import Manager
 from .dataset import Dataset
-from keras.models import model_from_json
+
+
+class ProgressDelegate(metaclass=ABCMeta):
+    @abstractmethod
+    def on_train_begin(self, logs={}):
+        pass
+
+    @abstractmethod
+    def on_train_end(self, logs={}):
+        pass
+
+    @abstractmethod
+    def on_epoch_begin(self, epoch, epochs, logs={}):
+        pass
+
+    @abstractmethod
+    def on_epoch_end(self, epoch, epochs, logs={}):
+        pass
+
+
+class ProgressCallback(keras.callbacks.Callback):
+    def __init__(self, delegate: ProgressDelegate, epochs: int):
+        self.delegate = delegate
+        self.total_epochs = epochs
+
+    def on_train_begin(self, logs={}):
+        self.delegate.on_train_begin(logs=logs)
+
+    def on_train_end(self, logs={}):
+        self.delegate.on_train_end(logs=logs)
+
+    def on_epoch_begin(self, epoch, logs={}):
+        self.delegate.on_epoch_begin(epoch=epoch,
+                                     epochs=self.total_epochs,
+                                     logs=logs)
+
+    def on_epoch_end(self, epoch, logs={}):
+        self.delegate.on_epoch_end(epoch=epoch,
+                                   epochs=self.total_epochs,
+                                   logs=logs)
 
 
 class Kernel:
 
-    def __init__(self, kernel_file, ipfs_api):
+    def __init__(self, kernel_file, ipfs_api, delegate: ProgressDelegate):
         # Initializing logger object
         self.logger = logging.getLogger("Kernel")
         self.logger.addHandler(LogSocketHandler.get_instance())
@@ -20,6 +61,8 @@ class Kernel:
         self.model_address = None
         self.weights_address = None
         self.model = None
+
+        self.progress_delegate = delegate
 
     def init_kernel(self):
         # get main kernel params
@@ -96,13 +139,15 @@ class Kernel:
         self.logger.info('Running training model inference...')
         self.model.compile(loss=dataset.loss,
                            optimizer=dataset.optimizer)
+        callback_handler = ProgressCallback(self.progress_delegate, dataset.epochs)
         self.model.fit(dataset.train_x_dataset,
                        dataset.train_y_dataset,
                        batch_size=dataset.batch_size,
                        epochs=dataset.epochs,
                        validation_split=dataset.validation_split,
                        shuffle=dataset.shuffle,
-                       initial_epoch=dataset.initial_epoch)
+                       initial_epoch=dataset.initial_epoch,
+                       callbacks=[callback_handler])
         # return model weights after model training
         return self.model
 
