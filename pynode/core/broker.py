@@ -562,6 +562,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
         self.job_state_thread_flag = False  # finalize job event listener loop
         self.job_state_event_thread = None
         self.logger.info('Job container cleaned up')
+        self.transact_progress(100, True)
         self.state_transact('provideResults', results_file)
 
     def processor_computing_failure(self, processor_id: Union[str, None]):
@@ -616,13 +617,6 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
                 Thread(target=self.transact_progress(current_percent, False), args=(), daemon=True).start()
                 self.sends_count += 1
                 self.logger.info('CURRENT MODEIFIER VALAE : ' + str(self.sends_count))
-        return
-
-    def on_batch_begin(self, batch, logs=None):
-        pass
-
-    def on_batch_end(self, batch, logs=None):
-        self.transact_progress(100, True)
         return
 
     def transact_progress(self, percents, wait_receipt):
