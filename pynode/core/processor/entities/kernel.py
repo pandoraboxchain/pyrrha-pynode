@@ -25,6 +25,14 @@ class ProgressDelegate(metaclass=ABCMeta):
     def on_epoch_end(self, epoch, epochs, logs={}):
         pass
 
+    @abstractmethod
+    def on_batch_begin(self, batch, logs=None):
+        pass
+
+    @abstractmethod
+    def on_batch_end(self, batch, logs=None):
+        pass
+
 
 class ProgressCallback(keras.callbacks.Callback):
     def __init__(self, delegate: ProgressDelegate, epochs: int):

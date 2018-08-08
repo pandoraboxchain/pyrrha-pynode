@@ -582,8 +582,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
         print('CALL : ON_TRAIN_END')
         self.finish_training_time = time.time()
         self.logger.info('Total training time : ' + str(self.finish_training_time - self.start_training_time))
-        if self.send_progress:
-            self.transact_progress(100)
+        self.transact_progress(100, True)
         self.send_progress = False
         self.sends_count = 1
         return
@@ -614,12 +613,19 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
             self.logger.info('Current percent : ' + str(current_percent))
             if time.time() >= self.start_training_time + (self.send_progress_interval * self.sends_count):
                 self.logger.info("transact precents : " + str(current_percent) + '%')
-                Thread(target=self.transact_progress(current_percent), args=(), daemon=True).start()
+                Thread(target=self.transact_progress(current_percent, False), args=(), daemon=True).start()
                 self.sends_count += 1
                 self.logger.info('CURRENT MODEIFIER VALAE : ' + str(self.sends_count))
         return
 
-    def transact_progress(self, percents):
+    def on_batch_begin(self, batch, logs=None):
+        pass
+
+    def on_batch_end(self, batch, logs=None):
+        self.transact_progress(100, True)
+        return
+
+    def transact_progress(self, percents, wait_receipt):
         self.logger.info("Transact progress to worker node")
         private_key = self.key_tool.obtain_key(self.manager.vault_key).split("_", 1)[1]
         tx_status = 0
@@ -640,11 +646,23 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
                                                                                                  private_key)
                 tx_hash = self.worker_node_container.web3.eth.sendRawTransaction(signed_transaction.rawTransaction)
                 self.logger.info('TX_HASH : ' + tx_hash.hex())
+                if wait_receipt:
+                    self.logger.info('Waiting for receipt...')
+                    transaction_receipt = self.worker_node_container.web3.eth.waitForTransactionReceipt(tx_hash,
+                                                                                                        timeout=300)
+                    if transaction_receipt:
+                        self.logger.info('TX_RECEIPT : ' + str(transaction_receipt))
+                        self.logger.info('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
+                        tx_status = transaction_receipt['status']
+                        time.sleep(2)  # wait some time after transaction (nonce refreshing on node)
+                    else:
+                        self.logger.info('Unknown state transaction. Skip.')
+                        tx_status = 1  # for unknown state transaction reason
+                        return
             except Exception as ex:
                 self.logger.error("Error executing progress transaction: %s", type(ex))
                 self.logger.error(ex.args)
                 time.sleep(5)
-            tx_status = 1
         return
 
 # ----------------------------------------------------------------------------------------------------------
@@ -657,15 +675,3 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
         subprocess.Popen(
             [sys.executable, script, '-p' + self.manager.vault_key + ''])
         sys.exit()
-
-# self.logger.info('Waiting for receipt...')
-# transaction_receipt = self.worker_node_container.web3.eth.waitForTransactionReceipt(tx_hash,
-#                                                                                    timeout=300)
-# if transaction_receipt:
-#    self.logger.info('TX_RECEIPT : ' + str(transaction_receipt))
-#    self.logger.info('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
-#    tx_status = transaction_receipt['status']
-#    time.sleep(2)  # wait some time after transaction (nonce refreshing on node)
-# else:
-#    self.logger.info('Unknown state transaction. Skip.')
-#    tx_status = 1  # for unknown state transaction reason
