@@ -95,7 +95,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
         self.finish_epoch_time = None
         self.time_per_epoch = None
         self.sends_count = 1
-        self.send_progress_interval = 200  # set to 5min by default
+        self.send_progress_interval = 300  # set to 5min by default
 
         self.local_password = None
         self.key_tool = KeyTools()
@@ -653,6 +653,8 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
                         self.logger.info('Unknown state transaction. Skip.')
                         tx_status = 1  # for unknown state transaction reason
                         return
+                else:
+                    tx_status = 1
             except Exception as ex:
                 self.logger.error("Error executing progress transaction: %s", type(ex))
                 self.logger.error(ex.args)
