@@ -1,11 +1,10 @@
-from abc import ABCMeta, abstractmethod
-
 import keras
 import logging
 
 from core.patterns.pynode_logger import LogSocketHandler
 from core.manager import Manager
 from .dataset import Dataset
+from abc import ABCMeta, abstractmethod
 
 
 class ProgressDelegate(metaclass=ABCMeta):

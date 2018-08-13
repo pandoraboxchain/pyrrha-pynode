@@ -18,7 +18,9 @@ from integration.integration.ipfs_connector import IpfsConnector
 from core.manager import Manager
 from service.tools.key_tools import KeyTools
 
-from core.node.worker_node import WorkerNode, WorkerNodeDelegate
+from core.node.worker_node import WorkerNodeDelegate
+from core.node.worker_node_thread import WorkerNodeStateMachineThread, WorkerNodeStateDelegate
+
 from core.job.cognitive_job import CognitiveJob
 from core.patterns.singleton import Singleton
 from core.patterns.pynode_logger import LogSocketHandler
@@ -26,7 +28,7 @@ from core.processor.processor import Processor, ProcessorDelegate
 from core.processor.entities.kernel import ProgressDelegate
 
 
-class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressDelegate):
+class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, ProcessorDelegate, ProgressDelegate):
     """
     Broker manages all underlying services/threads and arranges communications between them. Broker directly manages
     WebAPI and Ethereum threads and provides delegate interfaces for capturing their output via callback functions.
@@ -58,6 +60,9 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
         self.ipfs_server = ipfs_server
         self.ipfs_port = ipfs_port
         self.data_dir = data_dir
+
+        # initial filtering current block number
+        self.current_block_number = 0
 
         # Init empty container for pandora
         self.pandora_container = None
@@ -152,28 +157,18 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
                 return False
 
             self.logger.info('Worker account determination success')
-            # init worker node state machine and get current state
-            self.worker_node_state_machine = WorkerNode(contract_container=self.worker_node_container,
-                                                        delegate=self,
-                                                        address=self.node,
-                                                        contract=self.manager.eth_worker_contract)
-            # bind worker node states listener thread
-            if not self.worker_node_event_thread:
-                filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
-                self.worker_node_event_thread = Thread(target=self.worker_filter_thread_loop,
-                                                       args=(filter_on_worker, 2),
-                                                       daemon=True)
-            if not self.worker_node_event_thread.is_alive():
-                self.worker_node_event_thread.start()
-            status = self.worker_node_event_thread.is_alive()
-            self.logger.info('Event listener for worker node creation startup success, alive : ' + str(status))
+            self.worker_node_state_machine = WorkerNodeStateMachineThread(contract_container=self.worker_node_container,
+                                                                          delegate=self,
+                                                                          address=self.node,
+                                                                          contract=self.manager.eth_worker_contract,
+                                                                          state_delegate=self)
+            self.logger.info('Event listener for worker node creation startup success, alive : '
+                             + str(self.worker_node_state_machine.alive()))
             self.logger.info('Worker node state event thread listener initialize success')
-
             # process current worker node state after worker node event thread is initialized
             current_worker_node_state = self.worker_node_state_machine.process_state()
             self.logger.info('Worker node state machine initialized success with state : '
                              + str(current_worker_node_state))
-
             # start main broker thread
             super().start()
             self.logger.info("Broker started successfully")
@@ -181,7 +176,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
             # JOIN WORKER EVENTS CHANGE LISTENER to main process
             # ----------------------------------------------------------------------------------
             if self.mode == "0":  # join threads only in production mode
-                self.worker_node_event_thread.join()
+                self.worker_node_state_machine.get_worker_node_event_thread().join()
                 if self.job_state_event_thread:
                     self.job_state_event_thread.join()
             return True
@@ -308,67 +303,14 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
 # ----------------------------------------------------------------------------------------------------------
 # Broker listeners for state table change states processing
 # ----------------------------------------------------------------------------------------------------------
-    # worker node state filter thread loop
-    # TODO sometimes thread_loop is stop need more debug
-    def worker_filter_thread_loop(self, event_filter, poll_interval):
-        past_block = self.worker_node_container.web3.eth.getBlock('latest')
-        past_block_number = past_block.number
-
-        while True:
-            try:
-                current_block = self.worker_node_container.web3.eth.getBlock('latest')
-                current_block_number = current_block.number
-                diff = current_block_number - past_block_number
-                if diff >= 1:
-                    dynamic_poll_interval = current_block.timestamp - past_block.timestamp
-                    poll_interval = dynamic_poll_interval/diff - 0.5  # separate to get time for block
-                    self.logger.info('POLL_INTRVAL : ' + str(dynamic_poll_interval) +
-                                     ' sleep_time : ' + str(poll_interval) +
-                                     ' block_number : ' + str(current_block_number))
-                    past_block = self.worker_node_container.web3.eth.getBlock('latest')
-                    past_block_number = past_block.number
-
-                if event_filter:
-                    # skip events listening by time  previous block mining (most cheapest way)
-                    event_index = 0
-                    for event in event_filter.get_new_entries():
-                        event_index += 1
-                        self.on_worker_node_state_change(event)
-                    if event_index > 0:
-                        self.logger.info('Events count : ' + str(event_index))
-                    time.sleep(poll_interval)
-                else:
-                    self.logger.info('work_filter recreated')
-                    event_filter = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
-            except Exception as ex:
-                self.logger.info('EXCEPTION !' + str(ex.args))
-                if isinstance(ex.args, tuple):
-                    if len(ex.args) > 0:
-                        message = ex.args[0]
-                        # https://github.com/ethereum/web3.py/issues/354
-                        if 'filter not found' in str(message):
-                            # sometimes for unknown reason filter drops on eth node, so recreate it
-                            self.logger.info('work_filter recreated')
-                            event_filter = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
-                            # after filter recreated neeed to drop all incoming states to latest block
-                        else:
-                            self.logger.info('Exception on worker event handler.')
-                            self.logger.info(ex.args)
-                    else:
-                        self.logger.info('Exception on worker event handler.')
-                        self.logger.info(ex.args)
-                else:
-                    self.logger.info('Exception on worker event handler.')
-                    self.logger.info(ex.args)
-
     def on_worker_node_state_change(self, event: dict):
-        worker_state_table = self.worker_node_state_machine.state_table
+        worker_state_table = self.worker_node_state_machine.state_table()
         state_old = event['args']['oldState']
         state_new = event['args']['newState']
         self.logger.info("Contract WorkerNode changed its state from %s to %s",
                          worker_state_table[state_old].name,
                          worker_state_table[state_new].name)
-        self.worker_node_state_machine.state = state_new
+        self.worker_node_state_machine.state(state_new)
 
     # job state filter loop
     def job_filter_thread_loop(self, event_filter, pool_interval):
@@ -376,7 +318,9 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
             try:
                 if event_filter:
                     for event in event_filter.get_new_entries():
-                        self.on_cognitive_job_state_change(event)
+                        event_job_id = self.worker_node_container.web3.toHex(event['args']['jobId'])
+                        if event_job_id == self.job_id_hex:
+                            self.on_cognitive_job_state_change(event)
                     time.sleep(pool_interval)
                 else:
                     # https://github.com/ethereum/web3.py/issues/354
@@ -440,7 +384,9 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
                 self.processor_computing_failure(None)
                 return
             # start computing after processor init
-            processor.compute()
+            if processor:
+                processor.compute()
+            # if processor init false terminate job
         else:
             list(self.processors.values())[0].compute()
 
@@ -454,6 +400,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
                                                                                 "pending")
                 self.logger.info('Calculate gas estimation...')
                 gas_estimation = self.worker_node_container.web3.eth.generateGasPrice()
+                gas_estimation = int(gas_estimation + gas_estimation/2)
                 gas_price = self.worker_node_container.web3.eth.gasPrice
                 self.logger.info('Gas estimated : ' + str(gas_estimation))
                 raw_transaction = None
@@ -504,7 +451,14 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
                         .buildTransaction({
                             'from': self.manager.eth_worker_node_account,
                             'nonce': nonce,
-                            'gas': int(gas_estimation + gas_estimation/2),
+                            'gas': int(gas_estimation),
+                            'gasPrice': int(gas_price)})
+                if name in 'checkJobQueue':
+                    raw_transaction = self.pandora_container.functions.checkJobQueue() \
+                        .buildTransaction({
+                            'from': self.manager.eth_worker_node_account,
+                            'nonce': nonce,
+                            'gas': int(gas_estimation),
                             'gasPrice': int(gas_price)})
 
                 if raw_transaction is not None:
@@ -519,7 +473,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
                         self.logger.info('TX_RECEIPT : ' + str(transaction_receipt))
                         self.logger.info('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
                         tx_status = transaction_receipt['status']
-                    time.sleep(2)  # wait some time after transaction (nonce refreshing on node)
+                    time.sleep(5)  # wait some time after transaction (nonce refreshing on node)
                 else:
                     self.logger.info('Unknown state transaction. Skip.')
                     tx_status = 1  # for unknown state transaction reason
@@ -564,6 +518,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
         self.logger.info('Job container cleaned up')
         self.transact_progress(100, True)
         self.state_transact('provideResults', results_file)
+        self.state_transact('checkJobQueue')
 
     def processor_computing_failure(self, processor_id: Union[str, None]):
         self.logger.critical("Can't complete computing, exiting in order to reboot and try to repeat the work.")
@@ -583,7 +538,6 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
         print('CALL : ON_TRAIN_END')
         self.finish_training_time = time.time()
         self.logger.info('Total training time : ' + str(self.finish_training_time - self.start_training_time))
-        self.transact_progress(100, True)
         self.send_progress = False
         self.sends_count = 1
         return
@@ -613,10 +567,10 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
             current_percent = int(100/epochs * epoch)
             self.logger.info('Current percent : ' + str(current_percent))
             if time.time() >= self.start_training_time + (self.send_progress_interval * self.sends_count):
-                self.logger.info("transact precents : " + str(current_percent) + '%')
+                self.logger.info("transact presents : " + str(current_percent) + '%')
                 Thread(target=self.transact_progress(current_percent, False), args=(), daemon=True).start()
                 self.sends_count += 1
-                self.logger.info('CURRENT MODEIFIER VALAE : ' + str(self.sends_count))
+                self.logger.info('CURRENT MODIFIER VALUE : ' + str(self.sends_count))
         return
 
     def transact_progress(self, percents, wait_receipt):
@@ -634,7 +588,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate, ProgressD
                 raw_transaction = self.worker_node_container.functions.reportProgress(percents) \
                     .buildTransaction({'from': self.manager.eth_worker_node_account,
                                        'nonce': nonce,
-                                       'gas': gas_estimation,
+                                       'gas': int(gas_estimation + gas_estimation/2),
                                        'gasPrice': int(gas_price)})
                 signed_transaction = self.worker_node_container.web3.eth.account.signTransaction(raw_transaction,
                                                                                                  private_key)
