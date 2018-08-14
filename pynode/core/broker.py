@@ -473,6 +473,8 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, Pro
                         self.logger.info('TX_RECEIPT : ' + str(transaction_receipt))
                         self.logger.info('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
                         tx_status = transaction_receipt['status']
+                        if name in 'provideResults':
+                            self.state_transact('checkJobQueue')
                     time.sleep(5)  # wait some time after transaction (nonce refreshing on node)
                 else:
                     self.logger.info('Unknown state transaction. Skip.')
@@ -518,7 +520,6 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, Pro
         self.logger.info('Job container cleaned up')
         self.transact_progress(100, True)
         self.state_transact('provideResults', results_file)
-        self.state_transact('checkJobQueue')
 
     def processor_computing_failure(self, processor_id: Union[str, None]):
         self.logger.critical("Can't complete computing, exiting in order to reboot and try to repeat the work.")

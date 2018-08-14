@@ -69,7 +69,7 @@ class WorkerNodeStateMachineThread:
             poll_interval, past_block, past_block_number = \
                 self.calculate_thread_sleep_interval(past_block=past_block, past_block_number=past_block_number)
             try:
-                if last_call_time + 60000 < time.time():
+                if last_call_time + 60 < time.time():
                     self.logger.info('work_filter recreated on object timeout')
                     self.filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(
                         fromBlock=self.current_block_number - 2)
