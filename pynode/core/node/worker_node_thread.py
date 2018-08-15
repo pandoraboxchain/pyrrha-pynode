@@ -69,23 +69,25 @@ class WorkerNodeStateMachineThread:
             poll_interval, past_block, past_block_number = \
                 self.calculate_thread_sleep_interval(past_block=past_block, past_block_number=past_block_number)
             try:
-                if last_call_time + 60 < time.time():
-                    self.logger.info('work_filter recreated on object timeout')
-                    self.filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(
-                        fromBlock=self.current_block_number - 2)
                 if self.filter_on_worker:
+                    if last_call_time + 120 < time.time():  # recreate filter object
+                        self.logger.info('work_filter recreated on object timeout')
+                        self.filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(
+                            fromBlock=self.current_block_number - 2)
+                        self.process_state()
                     events = self.filter_on_worker.get_new_entries()
+                    last_call_time = time.time()
                     for event in events:
                         # validate current state and worker node address
                         current_state = self.worker_node.state
                         new_state = event['args']['newState']
                         if current_state != new_state:
                             self.state_delegate.on_worker_node_state_change(event)
-                    last_call_time = time.time()
                 else:
                     self.logger.info('work_filter recreated on object null')
                     self.filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(
                         fromBlock=self.current_block_number - 2)
+                    self.process_state()
             except Exception as ex:
                 self.logger.info('FILTER EXCEPTION ' + str(ex.args))
                 self.logger.info('work_filter recreated')
