@@ -75,6 +75,7 @@ class WorkerNodeStateMachineThread:
                         self.filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(
                             fromBlock=self.current_block_number - 2)
                         # TODO make state reset to 0
+                        self.state(0)
                         self.process_state()
                     events = self.filter_on_worker.get_new_entries()
                     last_call_time = time.time()
@@ -89,6 +90,7 @@ class WorkerNodeStateMachineThread:
                     self.filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(
                         fromBlock=self.current_block_number - 2)
                     # TODO make state reset to 0
+                    self.state(0)
                     self.process_state()
             except Exception as ex:
                 self.logger.info('FILTER EXCEPTION ' + str(ex.args))
@@ -96,6 +98,7 @@ class WorkerNodeStateMachineThread:
                 self.filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(
                     fromBlock=self.current_block_number - 2)
                 # TODO make state reset to 0
+                self.state(0)
                 self.process_state()
             time.sleep(poll_interval)
 
