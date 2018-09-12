@@ -44,7 +44,7 @@ class StateTransitionError(Exception):
 
 class StateMachine:
 
-    def __init__(self, table: StateTable, force_rules: bool = True):
+    def __init__(self, table: StateTable, force_rules: bool = False):
         self.__state = None
         self.__state_table = table
         self.force_rules = force_rules
@@ -59,16 +59,11 @@ class StateMachine:
         from_state = self.__state
         if from_state is not None:
             if self.state_table[from_state].name == self.state_table[to_state].name:
-                self.logger.error('Node is currently in state %s return.', self.state_table[to_state].name)
-                # some times on transfer state change calls several times from ETH event filters
-                # skip double transfer state
+                self.logger.info('Node is currently in state %s return.', self.state_table[to_state].name)
                 return
             if to_state not in self.state_table[from_state].transits_to:
-                if self.force_rules:
-                    # uncomment for test launch
+                if self.force_rules or to_state != 0:
                     raise StateTransitionError(from_state=from_state, to_state=to_state)
-                    #self.logger.error("Unregistered state transition from %s to %s",
-                    #                  self.state_table[from_state].name, self.state_table[to_state].name)
                 else:
                     self.logger.info("Unregistered state transition from %s to %s",
                                      self.state_table[from_state].name, self.state_table[to_state].name)
