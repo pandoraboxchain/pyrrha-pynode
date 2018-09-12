@@ -333,6 +333,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
     def test_worker_node_state_2_to_3(self):
         # Idle --> Assigned
         self.reset_flags()
+        self.job_id_hex = ''
         worker_node = WorkerNode(delegate=self, contract_container='')
         worker_node.state = 2
         try:
@@ -421,6 +422,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
     def test_worker_node_state_3_to_0(self):
         # Assigned --> Uninitialized
         self.reset_flags()
+        self.job_id_hex = ''
         worker_node = WorkerNode(delegate=self, contract_container='')
         worker_node.state = 3
         try:
@@ -436,6 +438,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
     def test_worker_node_state_3_to_1(self):
         # Assigned --> Offline
         self.reset_flags()
+        self.job_id_hex = ''
         worker_node = WorkerNode(delegate=self, contract_container='')
         worker_node.state = 3
         try:
@@ -451,6 +454,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
     def test_worker_node_state_3_to_2(self):
         # Assigned --> Idle
         self.reset_flags()
+        self.job_id_hex = ''
         worker_node = WorkerNode(delegate=self, contract_container='')
         worker_node.state = 3
         try:
@@ -465,6 +469,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
     def test_worker_node_state_3_to_3(self):
         # Assigned --> Assigned
         self.reset_flags()
+        self.job_id_hex = ''
         worker_node = WorkerNode(delegate=self, contract_container='')
         worker_node.state = 3
         try:
@@ -479,6 +484,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
     def test_worker_node_state_3_to_4(self):
         # Assigned --> ReadyForDataValidation
         self.reset_flags()
+        self.job_id_hex = ''
         worker_node = WorkerNode(delegate=self, contract_container='')
         worker_node.state = 3
         try:
@@ -494,6 +500,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
     def test_worker_node_state_3_to_5(self):
         # Assigned --> ValidatingData
         self.reset_flags()
+        self.job_id_hex = ''
         worker_node = WorkerNode(delegate=self, contract_container='')
         worker_node.state = 3
         try:
@@ -508,6 +515,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
     def test_worker_node_state_3_to_6(self):
         # Assigned --> ReadyForComputing
         self.reset_flags()
+        self.job_id_hex = ''
         worker_node = WorkerNode(delegate=self, contract_container='')
         worker_node.state = 3
         try:
@@ -522,6 +530,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
     def test_worker_node_state_3_to_7(self):
         # Assigned --> Computing
         self.reset_flags()
+        self.job_id_hex = ''
         worker_node = WorkerNode(delegate=self, contract_container='')
         worker_node.state = 3
         try:
@@ -536,6 +545,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
     def test_worker_node_state_3_to_8(self):
         # Assigned --> InsufficientStake
         self.reset_flags()
+        self.job_id_hex = ''
         worker_node = WorkerNode(delegate=self, contract_container='')
         worker_node.state = 3
         try:
@@ -550,6 +560,7 @@ class TestNode(unittest.TestCase, WorkerNodeDelegate):
     def test_worker_node_state_3_to_9(self):
         # Assigned --> UnderPenalty
         self.reset_flags()
+        self.job_id_hex = ''
         worker_node = WorkerNode(delegate=self, contract_container='')
         worker_node.state = 3
         try:

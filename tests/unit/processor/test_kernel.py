@@ -38,21 +38,24 @@ class TestKernel(unittest.TestCase):
 
     def test_init_kernel(self):
         kernel = Kernel(kernel_file=self.kernel_1_file,
-                        ipfs_api=self.test_ipfs_instance)
+                        ipfs_api=self.test_ipfs_instance,
+                        delegate=self)
         assert kernel.init_kernel() is True
         assert kernel.model_address is not None
         assert kernel.weights_address is ''
 
     def test_init_kernel_with_weights(self):
         kernel = Kernel(kernel_file=self.kernel_2_file,
-                        ipfs_api=self.test_ipfs_instance)
+                        ipfs_api=self.test_ipfs_instance,
+                        delegate=self)
         assert kernel.init_kernel() is True
         assert kernel.model_address is not None
         assert kernel.weights_address is not None
 
     def test_init_kernel_with_wrong_kernel_file(self):
         kernel = Kernel(kernel_file=self.kernel_3_file,
-                        ipfs_api=self.test_ipfs_instance)
+                        ipfs_api=self.test_ipfs_instance,
+                        delegate=self)
         assert kernel.init_kernel() is False
         assert kernel.model_address is None
         assert kernel.weights_address is None
@@ -63,7 +66,8 @@ class TestKernel(unittest.TestCase):
     # normal model
     def test_read_model(self):
         kernel = Kernel(kernel_file=self.kernel_1_file,
-                        ipfs_api=self.test_ipfs_instance)
+                        ipfs_api=self.test_ipfs_instance,
+                        delegate=self)
         if 'travis' in os.getcwd():  # fix path for travis launch
             kernel.model_address = 'tests/data/test_model_1'
         else:
@@ -74,7 +78,8 @@ class TestKernel(unittest.TestCase):
     # wrong saved model
     def test_read_wrong_model(self):
         kernel = Kernel(kernel_file=self.kernel_1_file,
-                        ipfs_api=self.test_ipfs_instance)
+                        ipfs_api=self.test_ipfs_instance,
+                        delegate=self)
         if 'travis' in os.getcwd():  # fix path for travis launch
             kernel.model_address = 'tests/data/test_model_2'
         else:
@@ -85,7 +90,8 @@ class TestKernel(unittest.TestCase):
     # model with invalid json
     def test_read_wrong_model_json(self):
         kernel = Kernel(kernel_file=self.kernel_1_file,
-                        ipfs_api=self.test_ipfs_instance)
+                        ipfs_api=self.test_ipfs_instance,
+                        delegate=self)
         if 'travis' in os.getcwd():  # fix path for travis launch
             kernel.model_address = 'tests/data/test_model_3'
         else:

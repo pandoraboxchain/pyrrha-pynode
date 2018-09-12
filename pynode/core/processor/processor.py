@@ -52,7 +52,8 @@ class Processor(Thread):
     def prepare(self, kernel_file, dataset_file, batch: int) -> bool:
         try:
             self.kernel = Kernel(kernel_file=kernel_file,
-                                 ipfs_api=self.ipfs_api)
+                                 ipfs_api=self.ipfs_api,
+                                 delegate=self.delegate)
             self.kernel_init_result = self.kernel.init_kernel()
             self.logger.info('Kernel init result : ' + str(self.kernel_init_result))
 
@@ -118,7 +119,7 @@ class Processor(Thread):
         self.commit_computing_result(out)
 
     def commit_computing_result(self, out):
-        self.results_file = str(self.manager.job_contract_address) + '.out.h5'
+        self.results_file = str(self.manager.eth_job_id_hex) + '.out.h5'
         try:
             if self.dataset.process == 'predict':
                 h5w = h5py.File(self.results_file, 'w')
@@ -143,4 +144,5 @@ class Processor(Thread):
         for filename in os.listdir(os.getcwd()):
             if 'out' not in filename:
                 os.remove(filename)
+        self.manager.eth_job_id_hex = ''
         self.logger.info('Clean up complete')

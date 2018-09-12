@@ -5,9 +5,10 @@ import time
 import os
 import subprocess
 
-
 from threading import Thread
 from typing import Union, Callable
+
+from web3.gas_strategies.time_based import medium_gas_price_strategy
 
 from integration.eth_service import EthService
 from integration.integration.eth_connector import EthConnector
@@ -17,16 +18,17 @@ from integration.integration.ipfs_connector import IpfsConnector
 from core.manager import Manager
 from service.tools.key_tools import KeyTools
 
-from core.node.worker_node import WorkerNode, WorkerNodeDelegate
-from core.job.cognitive_job import CognitiveJob
+from core.node.worker_node import WorkerNodeDelegate
+from core.node.worker_node_thread import WorkerNodeStateMachineThread, WorkerNodeStateDelegate
 
+from core.job.cognitive_job import CognitiveJob
 from core.patterns.singleton import Singleton
 from core.patterns.pynode_logger import LogSocketHandler
-
 from core.processor.processor import Processor, ProcessorDelegate
+from core.processor.entities.kernel import ProgressDelegate
 
 
-class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
+class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, ProcessorDelegate, ProgressDelegate):
     """
     Broker manages all underlying services/threads and arranges communications between them. Broker directly manages
     WebAPI and Ethereum threads and provides delegate interfaces for capturing their output via callback functions.
@@ -44,7 +46,9 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 
         # Initializing logger object
         self.logger = logging.getLogger("Broker")
+        self.logger.setLevel(logging.INFO)
         self.logger.addHandler(LogSocketHandler.get_instance())
+
         self.manager = Manager.get_instance()
         self.mode = self.manager.launch_mode
 
@@ -57,8 +61,15 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         self.ipfs_port = ipfs_port
         self.data_dir = data_dir
 
+        # initial filtering current block number
+        self.current_block_number = 0
+
         # Init empty container for pandora
         self.pandora_container = None
+        # Init empty container for cognitive job manager
+        self.job_controller = None
+        self.job_controller_address = None
+        self.job_controller_container = None
 
         # Init empty containers for worker node
         self.worker_node_container = None
@@ -66,7 +77,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         self.worker_node_event_thread = None
 
         # Init empty containers for job
-        self.job_address = None
+        self.job_id_hex = None
         self.job_container = None
         self.job_state_machine = None
         self.job_state_event_thread = None
@@ -80,6 +91,17 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         self.eth = EthService(strategic=EthConnector())
         self.ipfs = IpfsService(strategic=IpfsConnector())
 
+        # init progress delegate
+        self.send_progress = False
+        self.start_training_time = None
+        self.finish_training_time = None
+        self.current_epoch = None
+        self.start_epoch_time = None
+        self.finish_epoch_time = None
+        self.time_per_epoch = None
+        self.sends_count = 1
+        self.send_progress_interval = 300  # set to 5min by default
+
         self.local_password = None
         self.key_tool = KeyTools()
         print('Pandora broker initialize success')
@@ -90,15 +112,26 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 # ----------------------------------------------------------------------------------------------------------
     def connect(self) -> bool:
         if self.eth is not None:
+
             # init base contracts containers
             self.pandora_container = self.eth.init_contract(server_address=self.manager.eth_host,
                                                             contract_address=self.pandora,
                                                             contract_abi=self.manager.eth_pandora_contract)
             self.logger.info('Pandora contract initialized success on address : ' + self.pandora)
+
+            self.job_controller_address = self.pandora_container.call().jobController()
+            self.logger.info('Pandora cognitive job controller address : ' + self.pandora)
+            self.job_controller_container = self.eth.init_contract(server_address=self.manager.eth_host,
+                                                                   contract_address=self.job_controller_address,
+                                                                   contract_abi=self.manager.eth_job_controller_contract)
+            self.logger.info('Pandora cognitive job controller initialize success')
+
             self.worker_node_container = self.eth.init_contract(server_address=self.manager.eth_host,
                                                                 contract_address=self.node,
                                                                 contract_abi=self.manager.eth_worker_contract)
             self.logger.info('Worker contract initialized success on address : ' + self.node)
+            self.worker_node_container.web3.eth.setGasPriceStrategy(medium_gas_price_strategy)
+            self.logger.info('Set gas price strategy to -> medium_gas_price_strategy')
 
             # init worker contract owner account
             if self.key_tool.check_vault():
@@ -124,28 +157,18 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                 return False
 
             self.logger.info('Worker account determination success')
-            # init worker node state machine and get current state
-            self.worker_node_state_machine = WorkerNode(contract_container=self.worker_node_container,
-                                                        delegate=self,
-                                                        address=self.node,
-                                                        contract=self.manager.eth_worker_contract)
-            # bind worker node states listener thread
-            if not self.worker_node_event_thread:
-                filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
-                self.worker_node_event_thread = Thread(target=self.worker_filter_thread_loop,
-                                                       args=(filter_on_worker, 2),
-                                                       daemon=True)
-            if not self.worker_node_event_thread.is_alive():
-                self.worker_node_event_thread.start()
-            status = self.worker_node_event_thread.is_alive()
-            self.logger.info('Event listener for worker node creation startup success, alive : ' + str(status))
+            self.worker_node_state_machine = WorkerNodeStateMachineThread(contract_container=self.worker_node_container,
+                                                                          delegate=self,
+                                                                          address=self.node,
+                                                                          contract=self.manager.eth_worker_contract,
+                                                                          state_delegate=self)
+            self.logger.info('Event listener for worker node creation startup success, alive : '
+                             + str(self.worker_node_state_machine.alive()))
             self.logger.info('Worker node state event thread listener initialize success')
-
             # process current worker node state after worker node event thread is initialized
             current_worker_node_state = self.worker_node_state_machine.process_state()
             self.logger.info('Worker node state machine initialized success with state : '
                              + str(current_worker_node_state))
-
             # start main broker thread
             super().start()
             self.logger.info("Broker started successfully")
@@ -153,7 +176,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             # JOIN WORKER EVENTS CHANGE LISTENER to main process
             # ----------------------------------------------------------------------------------
             if self.mode == "0":  # join threads only in production mode
-                self.worker_node_event_thread.join()
+                self.worker_node_state_machine.get_worker_node_event_thread().join()
                 if self.job_state_event_thread:
                     self.job_state_event_thread.join()
             return True
@@ -169,29 +192,25 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
 # ----------------------------------------------------------------------------------------------------------
     # job address is necessary ADD it to method call parameters
     def init_cognitive_job(self) -> bool:
-        self.manager.job_contract_address = self.job_address
-        self.job_container = self.eth.init_contract(server_address=self.manager.eth_host,
-                                                    contract_address=self.job_address,
-                                                    contract_abi=self.manager.eth_cognitive_job_contract)
-        self.logger.info('Job contract initialized success on address : ' + self.job_address)
-        self.job_state_machine = CognitiveJob(contract_container=self.job_container,
-                                              delegate=self,
-                                              address=self.job_address,
-                                              contract=self.manager.eth_cognitive_job_contract)
-        current_job_state = self.job_state_machine.process_state()
-        self.logger.info('Cognition job state machine initialized success with state : '
-                         + str(current_job_state))
-        self.jobs[self.job_address] = self.job_container
+        if self.job_id_hex not in self.jobs:  # to avoid double init
+            self.job_state_machine = CognitiveJob(job_controller_container=self.job_controller_container,
+                                                  delegate=self)
+            current_job_state = self.job_state_machine.process_state(job_id_hex=self.job_id_hex)
+            self.logger.info('Cognition job state machine initialized success with state : '
+                             + str(current_job_state))
+            self.jobs[self.job_id_hex] = self.job_id_hex  # set job index to fobs list
 
-        self.job_state_thread_flag = True
-        filter_on_job = self.job_container.events.StateChanged.createFilter(fromBlock='latest')
-        self.job_state_event_thread = Thread(target=self.job_filter_thread_loop,
-                                             args=(filter_on_job, 2),
-                                             daemon=True)
-        self.job_state_event_thread.start()
-        status = self.job_state_event_thread.is_alive()
-        self.logger.info('Event listener for job states creation startup success, alive : ' + str(status))
-        self.logger.info('Cognitive job state event thread listener initialize success')
+            # job state loop init
+            self.job_state_thread_flag = True
+            filter_on_job = self.job_controller_container.events.JobStateChanged.createFilter(fromBlock='latest')
+            self.job_state_event_thread = Thread(target=self.job_filter_thread_loop,
+                                                 args=(filter_on_job, 2),
+                                                 daemon=True)
+            self.job_state_event_thread.start()
+            status = self.job_state_event_thread.is_alive()
+            self.logger.info('Event listener for job states on job controller creation startup success, alive : '
+                             + str(status))
+            self.logger.info('Cognitive job state event thread listener initialize success')
         return True
 
     # TODO for multiprocess cognition need to rebuild processor init flow
@@ -200,13 +219,13 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         # prepare processor for calculating data
         if self.ipfs is not None:
             # init job container if empty
-            if not self.job_container:
-                self.job_address = self.worker_node_container.call().activeJob()
+            if not self.job_id_hex:
+                self.job_id_hex = self.worker_node_container.web3.toHex(self.worker_node_container.call().activeJob())
                 self.init_cognitive_job()
 
             try:
-                kernel_address = self.job_container.call().kernel()
-                dataset_address = self.job_container.call().dataset()
+                kernel_address = self.job_controller_container.call().getCognitiveJobDetails(self.job_id_hex)[0]
+                dataset_address = self.job_controller_container.call().getCognitiveJobDetails(self.job_id_hex)[1]
             except Exception as ex:
                 self.logger.error("Exception initializing job internal contract")
                 self.logger.error(ex.args)
@@ -233,11 +252,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             self.logger.info('Dataset ipfs address : ' + str(dataset_ipfs_address))
 
             # determinate batch for current job
-            job = self.jobs[self.job_address]
-            workers = []
-            workers_count = job.call().activeWorkersCount()
-            for w in range(0, workers_count):
-                workers.append(job.call().activeWorkers(w).lower())
+            workers = self.job_controller_container.call().getCognitiveJobDetails(self.job_id_hex)[4]
             batch = None
             for idx, w in enumerate(workers):
                 if self.node.lower() == w.lower():
@@ -246,6 +261,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                     break
             if batch is None:
                 raise Exception("Can't determine this node batch number")
+
             # prepare ipfs
             self.logger.info('Start loading files data...')
             self.ipfs.connect(server=self.ipfs_server,
@@ -258,7 +274,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             self.ipfs.download_file(dataset_ipfs_address.decode("utf-8"))
             self.logger.info('Dataset datafile download success...')
 
-            processor_id = '%s:%s' % (self.node, self.job_address)
+            processor_id = '%s:%s' % (self.node, self.job_id_hex)
             # processor initialization
             processor = Processor(ipfs_api=self.ipfs,
                                   processor_id=processor_id,
@@ -276,77 +292,25 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             info = json.load(json_file)
         return info
 
-    @staticmethod
-    def check_job_address(job_address: str) -> str:
-        result = job_address
+    def check_job_id(self, job_address: str) -> str:
+        result_hex = self.worker_node_container.web3.toHex(job_address)
+        job_address = result_hex
         trimmed_address = job_address.replace('0', '')
         if trimmed_address == 'x':
-            result = None
-        return result
+            result_hex = None
+        return result_hex
 
 # ----------------------------------------------------------------------------------------------------------
 # Broker listeners for state table change states processing
 # ----------------------------------------------------------------------------------------------------------
-    # worker node state filter thread loop
-    # TODO sometimes thread_loop is stop (make different log file for loop state monitoring)
-    def worker_filter_thread_loop(self, event_filter, poll_interval):
-        past_block = self.worker_node_container.web3.eth.getBlock('latest')
-        past_block_number = past_block.number
-        while True:
-            try:
-                current_block = self.worker_node_container.web3.eth.getBlock('latest')
-                current_block_number = current_block.number
-                diff = current_block_number - past_block_number
-                if diff == 1:
-                    dynamic_poll_interval = current_block.timestamp - past_block.timestamp
-                    poll_interval = dynamic_poll_interval - 0.5
-                    self.logger.info('POLL_INTRVAL : ' + str(dynamic_poll_interval) +
-                                     ' sleep_time : ' + str(poll_interval) +
-                                     ' block_number : ' + str(current_block_number))
-                    past_block = self.worker_node_container.web3.eth.getBlock('latest')
-                    past_block_number = past_block.number
-
-                if event_filter:
-                    # skip events listening by time  previous block mining (most cheapest way)
-                    event_index = 0
-                    for event in event_filter.get_new_entries():
-                        event_index += 1
-                        self.on_worker_node_state_change(event)
-                    if event_index > 0:
-                        self.logger.info('Events count : ' + str(event_index))
-                    time.sleep(poll_interval)
-                else:
-                    self.logger.info('work_filter recreated')
-                    event_filter = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
-            except Exception as ex:
-                self.logger.info('EXCEPTION !' + str(ex.args))
-                if isinstance(ex.args, tuple):
-                    if len(ex.args) > 0:
-                        message = ex.args[0]
-                        # https://github.com/ethereum/web3.py/issues/354
-                        if 'filter not found' in str(message):
-                            # sometimes for unknown reason filter drops on eth node, so recreate it
-                            self.logger.info('work_filter recreated')
-                            event_filter = self.worker_node_container.events.StateChanged.createFilter(fromBlock='latest')
-                            # after filter recreated neeed to drop all incoming states to latest block
-                        else:
-                            self.logger.info('Exception on worker event handler.')
-                            self.logger.info(ex.args)
-                    else:
-                        self.logger.info('Exception on worker event handler.')
-                        self.logger.info(ex.args)
-                else:
-                    self.logger.info('Exception on worker event handler.')
-                    self.logger.info(ex.args)
-
     def on_worker_node_state_change(self, event: dict):
-        worker_state_table = self.worker_node_state_machine.state_table
+        worker_state_table = self.worker_node_state_machine.state_table()
         state_old = event['args']['oldState']
         state_new = event['args']['newState']
         self.logger.info("Contract WorkerNode changed its state from %s to %s",
                          worker_state_table[state_old].name,
                          worker_state_table[state_new].name)
-        self.worker_node_state_machine.state = state_new
+        self.worker_node_state_machine.state(state_new)
 
     # job state filter loop
     def job_filter_thread_loop(self, event_filter, pool_interval):
@@ -354,7 +318,9 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             try:
                 if event_filter:
                     for event in event_filter.get_new_entries():
-                        self.on_cognitive_job_state_change(event)
+                        event_job_id = self.worker_node_container.web3.toHex(event['args']['jobId'])
+                        if event_job_id == self.job_id_hex:
+                            self.on_cognitive_job_state_change(event)
                     time.sleep(pool_interval)
                 else:
                     # https://github.com/ethereum/web3.py/issues/354
@@ -384,14 +350,15 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         if self.job_container:
             self.logger.info('Job container inited. return')
             return
-        job_address = self.worker_node_container.call().activeJob()
-        if self.check_job_address(job_address) is None:
-            self.logger.info("Job address is empty, cant determinate job")
+        job_id = self.worker_node_container.call().activeJob()
+        if self.check_job_id(job_id) is None:
+            self.logger.info("Job ID is invalid, cant determinate job")
             return
-        self.logger.info("Initializing cognitive job contract for address %s", job_address)
-        self.job_address = job_address
+        self.job_id_hex = self.worker_node_container.web3.toHex(job_id)
+        self.manager.eth_job_id_hex = self.worker_node_container.web3.toHex(job_id)
+        self.logger.info("Initializing cognitive job contract for ID %s", self.job_id_hex)
         if self.init_cognitive_job() is False:
-            self.logger.error("Error initializing cognitive job for address %s", job_address)
+            self.logger.error("Error initializing cognitive job for ID %s", self.job_id_hex)
 
     def start_validating(self):
         self.logger.info('CALL - start_validating')
@@ -417,7 +384,9 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                 self.processor_computing_failure(None)
                 return
             # start computing after processor init
-            processor.compute()
+            if processor:
+                processor.compute()
+            # if processor init false terminate job
         else:
             list(self.processors.values())[0].compute()
 
@@ -429,42 +398,68 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
             try:
                 nonce = self.worker_node_container.web3.eth.getTransactionCount(self.manager.eth_worker_node_account,
                                                                                 "pending")
+                self.logger.info('Calculate gas estimation...')
+                gas_estimation = self.worker_node_container.web3.eth.generateGasPrice()
+                gas_estimation = int(gas_estimation + gas_estimation/2)
+                gas_price = self.worker_node_container.web3.eth.gasPrice
+                self.logger.info('Gas estimated : ' + str(gas_estimation))
                 raw_transaction = None
                 if name in 'alive':
                     raw_transaction = self.worker_node_container.functions.alive() \
                         .buildTransaction({
                             'from': self.manager.eth_worker_node_account,
-                            'nonce': nonce})
+                            'nonce': nonce,
+                            'gas': gas_estimation,
+                            'gasPrice': int(gas_price)})
                 if name in 'acceptAssignment':
                     raw_transaction = self.worker_node_container.functions.acceptAssignment() \
                         .buildTransaction({
                             'from': self.manager.eth_worker_node_account,
-                            'nonce': nonce})
+                            'nonce': nonce,
+                            'gas': gas_estimation,
+                            'gasPrice': int(gas_price)})
                 if name in 'processToDataValidation':
                     raw_transaction = self.worker_node_container.functions.processToDataValidation() \
                         .buildTransaction({
                             'from': self.manager.eth_worker_node_account,
-                            'nonce': nonce})
+                            'nonce': nonce,
+                            'gas': gas_estimation,
+                            'gasPrice': int(gas_price)})
                 if name in 'reportInvalidData':
                     raw_transaction = self.worker_node_container.functions.reportInvalidData() \
                         .buildTransaction({
                             'from': self.manager.eth_worker_node_account,
-                            'nonce': nonce})
+                            'nonce': nonce,
+                            'gas': gas_estimation,
+                            'gasPrice': int(gas_price)})
                 if name in 'acceptValidData':
                     raw_transaction = self.worker_node_container.functions.acceptValidData() \
                         .buildTransaction({
                             'from': self.manager.eth_worker_node_account,
-                            'nonce': nonce})
+                            'nonce': nonce,
+                            'gas': gas_estimation,
+                            'gasPrice': int(gas_price)})
                 if name in 'processToCognition':
                     raw_transaction = self.worker_node_container.functions.processToCognition() \
                         .buildTransaction({
                             'from': self.manager.eth_worker_node_account,
-                            'nonce': nonce})
+                            'nonce': nonce,
+                            'gas': gas_estimation,
+                            'gasPrice': int(gas_price)})
                 if name in 'provideResults':
                     raw_transaction = self.worker_node_container.functions.provideResults(str.encode(result_file[0])) \
                         .buildTransaction({
                             'from': self.manager.eth_worker_node_account,
-                            'nonce': nonce})
+                            'nonce': nonce,
+                            'gas': int(gas_estimation),
+                            'gasPrice': int(gas_price)})
+                if name in 'checkJobQueue':
+                    raw_transaction = self.pandora_container.functions.checkJobQueue() \
+                        .buildTransaction({
+                            'from': self.manager.eth_worker_node_account,
+                            'nonce': nonce,
+                            'gas': int(gas_estimation),
+                            'gasPrice': int(gas_price)})
 
                 if raw_transaction is not None:
                     signed_transaction = self.worker_node_container.web3.eth.account.signTransaction(raw_transaction,
@@ -478,7 +473,9 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
                         self.logger.info('TX_RECEIPT : ' + str(transaction_receipt))
                         self.logger.info('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
                         tx_status = transaction_receipt['status']
-                    time.sleep(2)  # wait some time after transaction (nonce refreshing on node)
+                        if name in 'provideResults':
+                            self.state_transact('checkJobQueue')
+                    time.sleep(5)  # wait some time after transaction (nonce refreshing on node)
                 else:
                     self.logger.info('Unknown state transaction. Skip.')
                     tx_status = 1  # for unknown state transaction reason
@@ -521,6 +518,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         self.job_state_thread_flag = False  # finalize job event listener loop
         self.job_state_event_thread = None
         self.logger.info('Job container cleaned up')
+        self.transact_progress(100, True)
         self.state_transact('provideResults', results_file)
 
     def processor_computing_failure(self, processor_id: Union[str, None]):
@@ -528,17 +526,103 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, ProcessorDelegate):
         self.restart_pynode()
 
 # ----------------------------------------------------------------------------------------------------------
+# Kernel progress delegate methods
+# ----------------------------------------------------------------------------------------------------------
+    def on_train_begin(self, logs={}):
+        print('CALL : ON_TRAIN_BEGIN')
+        self.start_training_time = time.time()
+        self.send_progress = False
+        self.sends_count = 1
+        return
+
+    def on_train_end(self, logs={}):
+        print('CALL : ON_TRAIN_END')
+        self.finish_training_time = time.time()
+        self.logger.info('Total training time : ' + str(self.finish_training_time - self.start_training_time))
+        self.send_progress = False
+        self.sends_count = 1
+        return
+
+    def on_epoch_begin(self, epoch, epochs, logs={}):
+        self.current_epoch = epoch
+        self.start_epoch_time = time.time()
+        return
+
+    def on_epoch_end(self, epoch, epochs, logs={}):
+        self.finish_epoch_time = time.time()
+        # process calculation on first epoch finish
+        if self.current_epoch == 0:
+            self.logger.info('')
+            self.logger.info('---------------------------------------------------------------------')
+            self.logger.info('Epoch ' + str(epoch) + ' of ' + str(epochs))
+            self.time_per_epoch = self.finish_epoch_time - self.start_epoch_time
+            self.logger.info('Time per epoch : ' + str(self.time_per_epoch))
+            total_time = self.time_per_epoch * epochs
+            self.logger.info('Total training time : ' + str(total_time))
+            if total_time > self.send_progress_interval:
+                self.send_progress = True
+            self.logger.info('Send progress strategy enabled : ' + str(self.send_progress))
+            time.sleep(5)
+            return
+        if self.send_progress:
+            current_percent = int(100/epochs * epoch)
+            self.logger.info('Current percent : ' + str(current_percent))
+            if time.time() >= self.start_training_time + (self.send_progress_interval * self.sends_count):
+                self.logger.info("transact presents : " + str(current_percent) + '%')
+                Thread(target=self.transact_progress(current_percent, False), args=(), daemon=True).start()
+                self.sends_count += 1
+                self.logger.info('CURRENT MODIFIER VALUE : ' + str(self.sends_count))
+        return
+
+    def transact_progress(self, percents, wait_receipt):
+        self.logger.info("Transact progress to worker node")
+        private_key = self.key_tool.obtain_key(self.manager.vault_key).split("_", 1)[1]
+        tx_status = 0
+        while tx_status == 0:
+            try:
+                nonce = self.worker_node_container.web3.eth.getTransactionCount(self.manager.eth_worker_node_account,
+                                                                                "pending")
+                self.logger.info('Calculate gas estimation...')
+                gas_estimation = self.worker_node_container.web3.eth.generateGasPrice()
+                gas_price = self.worker_node_container.web3.eth.gasPrice
+                self.logger.info('Gas estimated : ' + str(gas_estimation))
+                raw_transaction = self.worker_node_container.functions.reportProgress(percents) \
+                    .buildTransaction({'from': self.manager.eth_worker_node_account,
+                                       'nonce': nonce,
+                                       'gas': int(gas_estimation + gas_estimation/2),
+                                       'gasPrice': int(gas_price)})
+                signed_transaction = self.worker_node_container.web3.eth.account.signTransaction(raw_transaction,
+                                                                                                 private_key)
+                tx_hash = self.worker_node_container.web3.eth.sendRawTransaction(signed_transaction.rawTransaction)
+                self.logger.info('TX_HASH : ' + tx_hash.hex())
+                if wait_receipt:
+                    self.logger.info('Waiting for receipt...')
+                    transaction_receipt = self.worker_node_container.web3.eth.waitForTransactionReceipt(tx_hash,
+                                                                                                        timeout=300)
+                    if transaction_receipt:
+                        self.logger.info('TX_RECEIPT : ' + str(transaction_receipt))
+                        self.logger.info('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
+                        tx_status = transaction_receipt['status']
+                        time.sleep(2)  # wait some time after transaction (nonce refreshing on node)
+                    else:
+                        self.logger.info('Unknown state transaction. Skip.')
+                        tx_status = 1  # for unknown state transaction reason
+                        return
+                else:
+                    tx_status = 1
+            except Exception as ex:
+                self.logger.error("Error executing progress transaction: %s", type(ex))
+                self.logger.error(ex.args)
+                time.sleep(5)
+        return
+
+# ----------------------------------------------------------------------------------------------------------
 # System methods
 # ----------------------------------------------------------------------------------------------------------
     def restart_pynode(self):
         """ Restart pynode due keras or tensorflow exception """
-        # TODO add parameter for translate restart count
         os.chdir(self.manager.primary_wd)
         script = os.path.join(self.manager.primary_wd, 'pynode.py')
         subprocess.Popen(
             [sys.executable, script, '-p' + self.manager.vault_key + ''])
         sys.exit()
-
-
-
-

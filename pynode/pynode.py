@@ -243,29 +243,35 @@ def instantiate_contracts(abi_path, eth_hooks):
     if os.path.isdir(abi_path):
         if eth_hooks == 'True':
             if os.path.isfile(abi_path + "PandoraHooks.json"):
-                with open(abi_path + "PandoraHooks.json", encoding='utf-8') as pandora_contract_file:
+                with open(abi_path + "PandoraHooks.json", encoding='utf-8') \
+                        as pandora_contract_file:
                     manager.eth_pandora_contract = json.load(pandora_contract_file)['abi']
                     print('Pandora hooks abi loaded')
         else:
             if os.path.isfile(abi_path + "Pandora.json"):
-                with open(abi_path + "Pandora.json", encoding='utf-8') as pandora_contract_file:
+                with open(abi_path + "Pandora.json", encoding='utf-8') \
+                        as pandora_contract_file:
                     manager.eth_pandora_contract = json.load(pandora_contract_file)['abi']
                     print('Pandora abi loaded')
 
         if os.path.isfile(abi_path + "WorkerNode.json"):
-            with open(abi_path + "WorkerNode.json", encoding='utf-8') as worker_contract_file:
+            with open(abi_path + "WorkerNode.json", encoding='utf-8') \
+                    as worker_contract_file:
                 manager.eth_worker_contract = json.load(worker_contract_file)['abi']
                 print('WorkerNode abi loaded')
-        if os.path.isfile(abi_path + "CognitiveJob.json"):
-            with open(abi_path + "CognitiveJob.json", encoding='utf-8') as eth_cognitive_job_contract:
-                manager.eth_cognitive_job_contract = json.load(eth_cognitive_job_contract)['abi']
-                print('CognitiveJob abi loaded')
+        if os.path.isfile(abi_path + "CognitiveJobController.json"):
+            with open(abi_path + "CognitiveJobController.json", encoding='utf-8') \
+                    as eth_job_controller_contract:
+                manager.eth_job_controller_contract = json.load(eth_job_controller_contract)['abi']
+                print('CognitiveJobController abi loaded')
         if os.path.isfile(abi_path + "Kernel.json"):
-            with open(abi_path + "Kernel.json", encoding='utf-8') as eth_kernel_contract:
+            with open(abi_path + "Kernel.json", encoding='utf-8') \
+                    as eth_kernel_contract:
                 manager.eth_kernel_contract = json.load(eth_kernel_contract)['abi']
                 print('Kernel abi loaded')
         if os.path.isfile(abi_path + "Dataset.json"):
-            with open(abi_path + "Dataset.json", encoding='utf-8') as eth_dataset_contract:
+            with open(abi_path + "Dataset.json", encoding='utf-8') \
+                    as eth_dataset_contract:
                 manager.eth_dataset_contract = json.load(eth_dataset_contract)['abi']
                 print('Dataset abi loaded')
 

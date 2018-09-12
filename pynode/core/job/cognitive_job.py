@@ -3,8 +3,8 @@ import logging
 from typing import Callable
 from abc import ABCMeta, abstractmethod
 
+from core.job.job_stateful_contract import JobStatefulContract
 from core.patterns.state_machine import StateTableEntry
-from core.patterns.stateful_contract import StatefulContract
 
 
 class CognitiveJobDelegate(metaclass=ABCMeta):
@@ -18,7 +18,7 @@ class CognitiveJobDelegate(metaclass=ABCMeta):
         pass
 
 
-class CognitiveJob(StatefulContract):
+class CognitiveJob(JobStatefulContract):
 
     # States
 
