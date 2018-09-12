@@ -2,64 +2,69 @@
 [![Build Status](https://travis-ci.org/pandoraboxchain/pyrrha-pynode.svg?branch=master)](https://travis-ci.org/pandoraboxchain/pyrrha-pynode)
 # Pyrrha Python Node
 
-Experimental node implementation for Pyrrha version of Pandora Boxchain providing computations using AI kernels on hardware
-from providers. Current version is have rebuilded architecture
-
+Python implementation of worker node for Pyrrha protocol for computations
+using AI kernels using hardware from providers.
+This version has:
+* Rebuilt architecture
+* Changed events listening logic.
 * Python 3.6+ support
 
-## Quickstart
+## Initial setup/update
 
+```sh
+    git clone --recurse-submodules https://github.com/pandoraboxchain/pyrrha-pynode.git
+```
+
+## Preparing for launch
+This version works in a testnet Ethereum environment Rinkeby.
+* Create Ethereum Rinkeby wallet by MetaMask 
+* Send him at least 1ETH or get free ETH from Rinkeby faucet https://faucet.rinkeby.io/
+* For next steps please provide your Rinkeby wallet address for white-listing procedure
+
+## White-listing
+To pass the procedure, please provide to us your Rinkeby wallet address by creating issue or email us to: <br/>
+  korostelyov@pandoraboxchain.ai <br/>
+  ukolova@pandoraboxchain.ai <br/>
+
+## Quickstart
 At the moment, the node has a basic startup configuration, to work with actual consensus contracts
-from the main branch of the repository.
+from the main branch of the repository. 
 Base pynode configuration file are located in pynode/core/config folder and contains basic settings for
 providing node launch.
 
-On first launch
-    easy_install --upgrade pip
+Before first launch
+```sh
     pip install -r requirements.txt
-
-Knowing install problems
-* problem with web3 install (Failed building wheel for cytoolz)
-    - solution :
-```sh    
-    sudo apt-get install python3.6-dev
-    sudo python3.6 -m pip install cytoolz
-    sudo python3.6 -m pip install -r requirements.txt
 ```
-* after pip installs package success and getting error on launch
-"ModuleNotFoundError: No module named 'Crypto'"
-    - solution :
+
+## Worker Node contract creation
+To start the node you need to create a working contract in a consensus environment.
+After confirmation of the white-listing of your Rinkeby wallet address please use our internal tool
+to create worker node contract and finish basic setup.
 ```sh
-pip uninstall crypto
-pip uninstall pycrypto
+    cd tools
+    python ./worker_tools.py -a <Your white-listed Rinkeby wallet address>
 ```
-and install it again
-```sh
-pip install crypto
-```
+This tool will ask your for private key from your Rinkeby wallet and for local launch password.<br/>
+It will create/overwrite pyrrha-pynode/vault/worker_node_key.pri file with your private key encrypted by provided password.<br/>
+When tool finishes, contract address will be added to pyrrha-pynode/pynode/config/pynode.ini into the following field <br/>
+[Contracts] <br/>
+worker_node= 'worker node contract address'
 
-* On Windows sometimes web3 cant import Crypto.Random
-    - solution :
-    Check for crypto package name and if its 'crypto' rename it to 'Crypto'
+## WARNING
+To prevent data loss, please make a backup of
+* Personal password for pynode launch
+* pyrrha-pynode/vault/worker_node_key.pri file
+* pyrrha-pynode/pynode/config/pynode.ini file
 
-## IPFS problems
-
-* The local ipfs daemon does not host a locally added file
-   - solution :
-   restart local daemon or ipfs node server
-
-* IPFS The problem with ipfs with the unloading and accessibility of large files > 10MB
-   - on adding big file significantly increases the time through which it will be available
-   - any ideas are welcome
-
-An easier way to use a docker
-
+In case of loss, this data can not be restored!!!
+ 
 ## Simple launch
 Command for simple launch   
 ```sh
-python pynode.py -p<password from local vault>
+    python pynode.py -p '<Personal password for pynode launch>'
 ```   
-After simple console launching in terminal will be printed launch information based on configs and launch settings
+Launch information based on configs and initial settings will be printed to terminal
 for example:
 ```sh
    Configuration file path      : ..\pynode\core\config\pynode.ini
@@ -80,7 +85,44 @@ for example:
    Web socket enable            : False
    ABI folder path              : ../pyrrha-consensus/build/contracts/
 ``` 
-and pynode perform launch in current console thread.
+and pynode perform launch in current console thread. <br/>
+If everything is done correctly the current node state and blocks listening process will be displayed.
+```sh
+    (Thread-2  ) INFO: Contract WorkerNode initial state is Idle
+    (Thread-2  ) INFO: POLL_INTERVAL : 15 sleep_time : 14.5 block_number : 2975447
+    (Thread-2  ) INFO: POLL_INTERVAL : 15 sleep_time : 14.5 block_number : 2975448
+    (Thread-2  ) INFO: POLL_INTERVAL : 15 sleep_time : 14.5 block_number : 2975449
+    (Thread-2  ) INFO: POLL_INTERVAL : 15 sleep_time : 14.5 block_number : 2975450
+    ...
+``` 
+Node is running and in standby mode.
+
+### Local tests launching
+All tests is based in folder test and can be launched by 
+```sh
+    python launcher_test.py
+```
+
+### Use Docker 
+Current pynode version support creating Docker images. <br/>
+When your double check yor launch settings its possible to create Docker image by docker-compose
+```sh 
+    docker-compose build 
+``` 
+ and for launch container 
+```sh 
+    docker-compose up
+```
+In current time launch command for docker is <br/> 
+```sh 
+    CMD ["python", "./pynode.py", "-p","<your_vault_password>", "-c", "core/config/pynode.ini", "-i", "pandora", "-e", "remote", "-a", "../abi/"] 
+```
+which are duplicate default settings, your can config pynode as your needed and rebuild container with your launch parameters 
+ 
+### Versions review
+-- pynode ver 0.1.3, pynode-core ver 0.1.3
+- improve job working mechanism
+- improve filter events listener
 
 -- pynode ver 0.1.2, pynode-core ver 0.1.2
 - update batches logic
@@ -98,57 +140,69 @@ and pynode perform launch in current console thread.
 -- ver 0.1.1
 - at current version account logic are updated (Always satisfied but not mandatory) see more in logs
 
-### Local tests launching
-All tests is based in folder test and can be launched by 
-```sh
-python launcher_test.py
-```
-
-## Use Docker
-Current pynode version support creating Docker images.
-When your double check yor launch settings its possible to create Docker image
-from project folder execute
-```sh
-docker-compose build 
-``` 
-and for launch container 
-```sh
-docker-compose up
-```   
-In current time launch command for docker is 
-   CMD ["python",  "./pynode.py", "-p","<your_vault_password>", "-c", "core/config/pynode.ini", "-i", "pandora", "-e", "remote", "-a", "../abi/"]
-which are duplicate default settings, your can config pynode as your needed and rebuild container with 
-your launch parameters
-   
-   
-   
-Current remote deployment for testing and PoC
-
-======== KERNEL  =========
-  - KERNEL for training 
-    - 0xC59C2f5e9e5e38bcf55CDfaB6450155967a1a65F
-    - ipfs address : QmRRRboNgF2169kTGozNPF6VmYSZWbrwbfoo9Fag5JZqLi (model)
  
+### Knowing install problems
+* problem with web3 install (Failed building wheel for cytoolz)
+    - solution :
+```sh    
+    sudo apt-get install python3.6-dev
+    sudo python3.6 -m pip install cytoolz
+    sudo python3.6 -m pip install -r requirements.txt
+```
+* after pip installs package success and getting error on launch
+"ModuleNotFoundError: No module named 'Crypto'"
+    - solution :
+```sh
+    pip uninstall crypto
+    pip uninstall pycrypto
+    pip install crypto
+```
+* On Windows sometimes web3 cant import Crypto.Random
+    - solution :
+    Check for crypto package name and if its 'crypto' rename it to 'Crypto'
+* Sometimes pip unable to install keras and tensorflow.
+    - in current version keras=2.0.8, tensorflow=1.3.0 are used. 
+    - solution:
+    Try to install it manually from console.
+* The local ipfs daemon does not host a locally added file
+   - solution :
+   restart local daemon or ipfs node server
+
+### Preloaded test data
+======== KERNEL  =========
+  - KERNEL for training on 48 epochs
+    - contract: 0x0Cb9dBDe49be9040EAF2d200cDA874aF44bf7f29
+  - KERNEL for training on 100 epochs
+    - contract: 0x6b54fB95b48944f16b198706BEE7fdC6d0230Fe2
   - KERNEL for prediction
-    - 0x2e1bc6cDca93c6C22C4A067C317177f5EF412E10
-    - ipfs address : QmRRRboNgF2169kTGozNPF6VmYSZWbrwbfoo9Fag5JZqLi (model)
-    - ipfs address : QmRuocz82HetMMmLAFBuBGxNmpeUCCCpQqhSreYRMD6vBL (weights)
+    - contract: 0x744cA86eD4A0ead226ABCAd6349FDbCfb82912c1
    
 ======== DATASET =========
-  - DATASET for training
-    - 0x6a9d4A8BB2aa5B5BafA7a5e04234410829688F60
-    - ipfs address : QmeZ5Ra4NsSVqTv5T6jiDKM7yDVKPmwDH94Sfuyy3Knd1d 
-      - "train_x":"QmQNWiv1s7rhoUrfELCtK65VZGbTE79Bfa3kkoeFf7aVQA"
-      - "train_y":"QmT3keTG7fXrPRZApjwVWvZDamLC5LeyvQLou4rSJLJJEj"
-
-  - DATASET for predict (one batch)
-    - 0x2632103cfD39Bdd1A9f170f26A0295dbaFeeBb85
-    - ipfs address : QmfLq32vssJ8RmcT49cFtUmFm3Rw2MozWhkTRRFyKbobX8
-        - batch ipfs address : QmYhL15VowVXhUPms1VhTcmeVBjxWZhNEQ5kpdo5kBoPYY
+  - DATASET for training on 48 epochs
+    - contract: 0xfA80239654c087399D94B0FbFec2Cfb7280C16D9
+  - DATASET for training on 100 epochs
+    - contract: 0xcf18C44C1e41A47551A9c9f299ecB36E1F44083A
+  - DATASET for predict (one batch with 100 items)
+    - contract: 0x3f8542f22E715D8C840A7261aaa9323232EA8F63
+  - DATASET for predict (one batch with 50 items)
+    - contract: 0xc652aF842b37815D0B7FD8BEE15F28210Bf7e0DB
+  - DATASET for predict (one batch with 10 items)
+    - contract: 0x6Da1722bdDcfCB949087BaFA51f86ab6cAeB5413
+  - DATASET for predict (two batches by 100 items)
+    - contract: 0xE14D4e300DadD764687B906Eb8269304edFf9D28
+  - DATASET for predict (three batches by 100 items)
+    - contract: 0x69D3C2556EF35D59526C9Ab6814722Bde5A269C2
   
-  - DATASET fro predict (two batches)
-    - 0x0dbE74b60c588DFc3b6aeB973e78B4748e499979
-    - ipfs address : QmRqqir1e2BL91vRmCfuQQcbTRHgU6jJKNXGFb7pvQxGgW
-        - batch ipfs address : QmYhL15VowVXhUPms1VhTcmeVBjxWZhNEQ5kpdo5kBoPYY
-        - batch ipfs address : QmWFKhJK4fuE2ixnyysRVnRk4WAcvGVpHPpvsUTNn4zKLW
-  
+======== JOB EXAMPLES ========= <br/>
+```sh
+COGNITIVE JOB TRAIN_100
+JOB_TYPE   : Training
+KERNEL     : 0x6b54fB95b48944f16b198706BEE7fdC6d0230Fe2
+DATASET    : 0xcf18C44C1e41A47551A9c9f299ecB36E1F44083A
+```
+```sh
+COGNITIVE JOB PREDICT_100 
+JOB_TYPE   : Prediction 
+KERNEL     : 0x744cA86eD4A0ead226ABCAd6349FDbCfb82912c1
+DATASET    : 0x3f8542f22E715D8C840A7261aaa9323232EA8F63
+```
