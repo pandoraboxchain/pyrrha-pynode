@@ -74,6 +74,7 @@ class WorkerNodeStateMachineThread:
                         self.logger.info('work_filter recreated on object timeout')
                         self.filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(
                             fromBlock=self.current_block_number - 2)
+                        # TODO make state reset to 0
                         self.process_state()
                     events = self.filter_on_worker.get_new_entries()
                     last_call_time = time.time()
@@ -87,12 +88,14 @@ class WorkerNodeStateMachineThread:
                     self.logger.info('work_filter recreated on object null')
                     self.filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(
                         fromBlock=self.current_block_number - 2)
+                    # TODO make state reset to 0
                     self.process_state()
             except Exception as ex:
                 self.logger.info('FILTER EXCEPTION ' + str(ex.args))
                 self.logger.info('work_filter recreated')
                 self.filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(
                     fromBlock=self.current_block_number - 2)
+                # TODO make state reset to 0
                 self.process_state()
             time.sleep(poll_interval)
 
