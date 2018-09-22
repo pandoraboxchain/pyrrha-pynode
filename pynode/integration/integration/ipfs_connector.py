@@ -33,7 +33,7 @@ class IpfsConnector(IpfsAbstract):
                 start = time.time()
                 try:
                     return self.connector.get(file_address)
-                    #response = requests.get(host_remote + file_address, stream=True, timeout=120)
+                    # response = requests.get(host_remote + file_address, stream=True, timeout=120)
                 except Exception as ex:
                     if isinstance(ex.args, tuple):
                         str_exception = ex.args[0].args[0]
@@ -82,7 +82,8 @@ class IpfsConnector(IpfsAbstract):
     # -------------------------------------
     # Print iterations progress
     # -------------------------------------
-    def print_progress_bar(self, iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█'):
+    @staticmethod
+    def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█'):
         """
         Call in a loop to create terminal progress bar
         @params:

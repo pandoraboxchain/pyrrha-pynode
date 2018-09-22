@@ -528,14 +528,14 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, Pro
 # ----------------------------------------------------------------------------------------------------------
 # Kernel progress delegate methods
 # ----------------------------------------------------------------------------------------------------------
-    def on_train_begin(self, logs={}):
+    def on_train_begin(self, logs):
         print('CALL : ON_TRAIN_BEGIN')
         self.start_training_time = time.time()
         self.send_progress = False
         self.sends_count = 1
         return
 
-    def on_train_end(self, logs={}):
+    def on_train_end(self, logs):
         print('CALL : ON_TRAIN_END')
         self.finish_training_time = time.time()
         self.logger.info('Total training time : ' + str(self.finish_training_time - self.start_training_time))
@@ -543,12 +543,12 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, Pro
         self.sends_count = 1
         return
 
-    def on_epoch_begin(self, epoch, epochs, logs={}):
+    def on_epoch_begin(self, epoch, epochs, logs):
         self.current_epoch = epoch
         self.start_epoch_time = time.time()
         return
 
-    def on_epoch_end(self, epoch, epochs, logs={}):
+    def on_epoch_end(self, epoch, epochs, logs):
         self.finish_epoch_time = time.time()
         # process calculation on first epoch finish
         if self.current_epoch == 0:

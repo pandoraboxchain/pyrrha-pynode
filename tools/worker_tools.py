@@ -9,6 +9,7 @@ from base64 import b64encode
 from configparser import ConfigParser
 from web3 import Web3, HTTPProvider
 from web3.middleware import geth_poa_middleware
+from web3.gas_strategies.time_based import medium_gas_price_strategy
 
 from pathlib import Path
 from hashlib import md5
@@ -109,6 +110,12 @@ def process_create_worker_contract():
         # On Delete() logic finish
         # -------------------------
 
+    print('Provide gas estimation')
+    connector.eth.setGasPriceStrategy(medium_gas_price_strategy)
+    gas_estimation = connector.eth.generateGasPrice()
+    gas_estimation = int(gas_estimation + gas_estimation / 2)
+    gas_price = connector.eth.gasPrice
+    print('Gas estimation complete success')
     if MainModel.remove_flag is False:
         print('Transact for creation worker node contract')
         try:
@@ -116,7 +123,9 @@ def process_create_worker_contract():
             raw_transaction = contract.functions.createWorkerNode() \
                 .buildTransaction({
                     'from': MainModel.new_worker_account,
-                    'nonce': nonce})
+                    'nonce': nonce,
+                    'gas': gas_estimation,
+                    'gasPrice': int(gas_price)})
             signed_transaction = connector.eth.account.signTransaction(raw_transaction,
                                                                        MainModel.new_worker_account_p_key)
             MainModel.new_worker_account_p_key = None
@@ -138,7 +147,8 @@ def process_create_worker_contract():
                 .buildTransaction({
                     'from': MainModel.new_worker_account,
                     'nonce': nonce,
-                    'gas': 44068})
+                    'gas': gas_estimation,
+                    'gasPrice': int(gas_price)})
             signed_transaction = connector.eth.account.signTransaction(raw_transaction,
                                                                        MainModel.new_worker_account_p_key)
             MainModel.new_worker_account_p_key = None
@@ -194,7 +204,6 @@ def on_worker_node_event(event: dict):
         except Exception as ex:
             print("Exception retrieving worker contract deletion event")
             print(ex.args)
-        pass
     exit(0)
 # -------------------------------------------------
 

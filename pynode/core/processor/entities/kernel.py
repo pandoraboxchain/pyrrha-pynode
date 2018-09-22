@@ -9,19 +9,19 @@ from abc import ABCMeta, abstractmethod
 
 class ProgressDelegate(metaclass=ABCMeta):
     @abstractmethod
-    def on_train_begin(self, logs={}):
+    def on_train_begin(self, logs):
         pass
 
     @abstractmethod
-    def on_train_end(self, logs={}):
+    def on_train_end(self, logs):
         pass
 
     @abstractmethod
-    def on_epoch_begin(self, epoch, epochs, logs={}):
+    def on_epoch_begin(self, epoch, epochs, logs):
         pass
 
     @abstractmethod
-    def on_epoch_end(self, epoch, epochs, logs={}):
+    def on_epoch_end(self, epoch, epochs, logs):
         pass
 
 
@@ -30,18 +30,18 @@ class ProgressCallback(keras.callbacks.Callback):
         self.delegate = delegate
         self.total_epochs = epochs
 
-    def on_train_begin(self, logs={}):
+    def on_train_begin(self, logs):
         self.delegate.on_train_begin(logs=logs)
 
-    def on_train_end(self, logs={}):
+    def on_train_end(self, logs):
         self.delegate.on_train_end(logs=logs)
 
-    def on_epoch_begin(self, epoch, logs={}):
+    def on_epoch_begin(self, epoch, logs):
         self.delegate.on_epoch_begin(epoch=epoch,
                                      epochs=self.total_epochs,
                                      logs=logs)
 
-    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_end(self, epoch, logs):
         self.delegate.on_epoch_end(epoch=epoch,
                                    epochs=self.total_epochs,
                                    logs=logs)
