@@ -276,7 +276,12 @@ def instantiate_contracts(abi_path, eth_hooks):
                 print('Dataset abi loaded')
 
     else:
-        print("ABI files not found, exiting")
+        print("ABI files not found, exiting.")
+        print("pyrrha-pynode repo contains link to pyrrha-consensus project.")
+        print("for complete clone project please provide git commands :")
+        print("cd .\pyrrha-pynode\"")
+        print("git submodule init")
+        print("git submodule update --recursive --remote")
         raise ContractsAbiNotFound()
 
 
