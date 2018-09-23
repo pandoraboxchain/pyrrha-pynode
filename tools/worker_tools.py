@@ -114,7 +114,7 @@ def process_create_worker_contract():
     print('Provide gas estimation')
     connector.eth.setGasPriceStrategy(medium_gas_price_strategy)
     gas_estimation = connector.eth.generateGasPrice()
-    gas_estimation = int(gas_estimation * 2)
+    gas_estimation = int(gas_estimation * 4)
     gas_price = connector.eth.gasPrice
     print('Gas estimation complete success')
     checksum_worker_node_account = connector.toChecksumAddress(MainModel.new_worker_account)
