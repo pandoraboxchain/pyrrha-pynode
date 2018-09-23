@@ -73,7 +73,8 @@ def process_create_worker_contract():
             print('Unable to create vault.')
             return
 
-        account_balance = connector.eth.getBalance(MainModel.new_worker_account)
+        account_balance = connector.eth.getBalance(connector.toChecksumAddress(
+            connector.toChecksumAddress(MainModel.new_worker_account)))
         account_balance_eth = Web3.fromWei(account_balance, 'ether')
         if account_balance_eth < 0.5:
             print('For creating worker node account your need to spend 0.005 ETH and 0.5 ETH need for management node')
@@ -116,13 +117,14 @@ def process_create_worker_contract():
     gas_estimation = int(gas_estimation + gas_estimation / 2)
     gas_price = connector.eth.gasPrice
     print('Gas estimation complete success')
+    checksum_worker_node_account = connector.toChecksumAddress(MainModel.new_worker_account)
     if MainModel.remove_flag is False:
         print('Transact for creation worker node contract')
         try:
-            nonce = connector.eth.getTransactionCount(MainModel.new_worker_account, "pending")
+            nonce = connector.eth.getTransactionCount(checksum_worker_node_account, "pending")
             raw_transaction = contract.functions.createWorkerNode() \
                 .buildTransaction({
-                    'from': MainModel.new_worker_account,
+                    'from': checksum_worker_node_account,
                     'nonce': nonce,
                     'gas': gas_estimation,
                     'gasPrice': int(gas_price)})
@@ -135,6 +137,9 @@ def process_create_worker_contract():
             transaction_receipt = connector.eth.waitForTransactionReceipt(tx_hash, timeout=300)  # may take while(5 min)
             print('TX_RECEIPT : ' + str(transaction_receipt))
             print('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
+            if transaction_receipt['status'] == 0:
+                print('Transaction fail. For technical support please save logs and contact with us.')
+                exit(0)
         except Exception as ex:
             print('Exception while transact creation worker contract')
             print(ex.args)
@@ -142,10 +147,10 @@ def process_create_worker_contract():
     else:
         print('Transact for destroy worker node contract')
         try:
-            nonce = connector.eth.getTransactionCount(MainModel.new_worker_account)
+            nonce = connector.eth.getTransactionCount(checksum_worker_node_account)
             raw_transaction = contract.functions.destroyWorkerNode(MainModel.current_worker_contract) \
                 .buildTransaction({
-                    'from': MainModel.new_worker_account,
+                    'from': checksum_worker_node_account,
                     'nonce': nonce,
                     'gas': gas_estimation,
                     'gasPrice': int(gas_price)})
@@ -158,6 +163,9 @@ def process_create_worker_contract():
             transaction_receipt = connector.eth.waitForTransactionReceipt(tx_hash, timeout=300)  # may take while(5 min)
             print('TX_RECEIPT : ' + str(transaction_receipt))
             print('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
+            if transaction_receipt['status'] == 0:
+                print('Transaction fail. For technical support please save logs and contact with us.')
+                exit(0)
         except Exception as ex:
             print('Exception while transact destroy worker contract')
             print(ex.args)

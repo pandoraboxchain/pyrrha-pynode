@@ -396,7 +396,9 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, Pro
         tx_status = 0
         while tx_status == 0:
             try:
-                nonce = self.worker_node_container.web3.eth.getTransactionCount(self.manager.eth_worker_node_account,
+                checksum_worker_node_account = self.worker_node_container.web3.toChecksumAddress(
+                    self.manager.eth_worker_node_account)
+                nonce = self.worker_node_container.web3.eth.getTransactionCount(checksum_worker_node_account,
                                                                                 "pending")
                 self.logger.info('Calculate gas estimation...')
                 gas_estimation = self.worker_node_container.web3.eth.generateGasPrice()
@@ -407,56 +409,56 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, Pro
                 if name in 'alive':
                     raw_transaction = self.worker_node_container.functions.alive() \
                         .buildTransaction({
-                            'from': self.manager.eth_worker_node_account,
+                            'from': checksum_worker_node_account,
                             'nonce': nonce,
                             'gas': gas_estimation,
                             'gasPrice': int(gas_price)})
                 if name in 'acceptAssignment':
                     raw_transaction = self.worker_node_container.functions.acceptAssignment() \
                         .buildTransaction({
-                            'from': self.manager.eth_worker_node_account,
+                            'from': checksum_worker_node_account,
                             'nonce': nonce,
                             'gas': gas_estimation,
                             'gasPrice': int(gas_price)})
                 if name in 'processToDataValidation':
                     raw_transaction = self.worker_node_container.functions.processToDataValidation() \
                         .buildTransaction({
-                            'from': self.manager.eth_worker_node_account,
+                            'from': checksum_worker_node_account,
                             'nonce': nonce,
                             'gas': gas_estimation,
                             'gasPrice': int(gas_price)})
                 if name in 'reportInvalidData':
                     raw_transaction = self.worker_node_container.functions.reportInvalidData() \
                         .buildTransaction({
-                            'from': self.manager.eth_worker_node_account,
+                            'from': checksum_worker_node_account,
                             'nonce': nonce,
                             'gas': gas_estimation,
                             'gasPrice': int(gas_price)})
                 if name in 'acceptValidData':
                     raw_transaction = self.worker_node_container.functions.acceptValidData() \
                         .buildTransaction({
-                            'from': self.manager.eth_worker_node_account,
+                            'from': checksum_worker_node_account,
                             'nonce': nonce,
                             'gas': gas_estimation,
                             'gasPrice': int(gas_price)})
                 if name in 'processToCognition':
                     raw_transaction = self.worker_node_container.functions.processToCognition() \
                         .buildTransaction({
-                            'from': self.manager.eth_worker_node_account,
+                            'from': checksum_worker_node_account,
                             'nonce': nonce,
                             'gas': gas_estimation,
                             'gasPrice': int(gas_price)})
                 if name in 'provideResults':
                     raw_transaction = self.worker_node_container.functions.provideResults(str.encode(result_file[0])) \
                         .buildTransaction({
-                            'from': self.manager.eth_worker_node_account,
+                            'from': checksum_worker_node_account,
                             'nonce': nonce,
                             'gas': int(gas_estimation),
                             'gasPrice': int(gas_price)})
                 if name in 'checkJobQueue':
                     raw_transaction = self.pandora_container.functions.checkJobQueue() \
                         .buildTransaction({
-                            'from': self.manager.eth_worker_node_account,
+                            'from': checksum_worker_node_account,
                             'nonce': nonce,
                             'gas': int(gas_estimation),
                             'gasPrice': int(gas_price)})
