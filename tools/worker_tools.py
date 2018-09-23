@@ -114,7 +114,7 @@ def process_create_worker_contract():
     print('Provide gas estimation')
     connector.eth.setGasPriceStrategy(medium_gas_price_strategy)
     gas_estimation = connector.eth.generateGasPrice()
-    gas_estimation = int(gas_estimation + gas_estimation / 2)
+    gas_estimation = int(gas_estimation * 2)
     gas_price = connector.eth.gasPrice
     print('Gas estimation complete success')
     checksum_worker_node_account = connector.toChecksumAddress(MainModel.new_worker_account)
@@ -137,9 +137,6 @@ def process_create_worker_contract():
             transaction_receipt = connector.eth.waitForTransactionReceipt(tx_hash, timeout=300)  # may take while(5 min)
             print('TX_RECEIPT : ' + str(transaction_receipt))
             print('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
-            if transaction_receipt['status'] == 0:
-                print('Transaction fail. For technical support please save logs and contact with us.')
-                exit(0)
         except Exception as ex:
             print('Exception while transact creation worker contract')
             print(ex.args)
@@ -163,13 +160,13 @@ def process_create_worker_contract():
             transaction_receipt = connector.eth.waitForTransactionReceipt(tx_hash, timeout=300)  # may take while(5 min)
             print('TX_RECEIPT : ' + str(transaction_receipt))
             print('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
-            if transaction_receipt['status'] == 0:
-                print('Transaction fail. For technical support please save logs and contact with us.')
-                exit(0)
         except Exception as ex:
             print('Exception while transact destroy worker contract')
             print(ex.args)
             return
+    if transaction_receipt['status'] == 0:
+        print('Transaction fail. For technical support please save logs and contact with us.')
+        exit(0)
     return
 
 
