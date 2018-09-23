@@ -148,7 +148,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, Pro
                         self.logger.info('Unable to unlock account vault.')
                         self.logger.info('Please provide pynode configuration.')
                         return False
-                except Exception as ex:
+                except Exception:
                     self.logger.info('Exception on unlock account vault.')
                     return False
             else:

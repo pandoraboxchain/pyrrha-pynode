@@ -92,7 +92,7 @@ class WorkerNodeStateMachineThread:
                     # TODO make state reset to 0
                     self.state(0)
                     self.process_state()
-            except Exception as ex:
+            except Exception:
                 self.logger.info('work_filter recreated due timeout')
                 self.filter_on_worker = self.worker_node_container.events.StateChanged.createFilter(
                     fromBlock=self.current_block_number - 2)
