@@ -24,14 +24,19 @@ from threading import Thread
 class MainModel:
     eth_host = None
     pandora_contract_address = None
+    economic_contract_address = None
+    pan_token_contract_address = None
     pandora_abi_path = None
     pandora_abi = None
+    pan_abi = None
     remove_flag = False
     current_worker_contract = None
 
     new_worker_account = None
     new_worker_account_vault_pass = None
     new_worker_account_p_key = None
+    new_worker_account_minimal_stake = None
+    new_worker_account_batch_price = None
     obtaining_flag = False
 # -------------------------------------------------
 
@@ -56,7 +61,8 @@ def process_create_worker_contract():
     print('Connection success, check provided customer account address')
     contract = connector.eth.contract(address=connector.toChecksumAddress(MainModel.pandora_contract_address),
                                       abi=MainModel.pandora_abi)
-
+    pan_contract = connector.eth.contract(address=connector.toChecksumAddress(MainModel.pan_token_contract_address),
+                                          abi=MainModel.pan_abi)
     worker = Thread()  # assign empty for join
     if MainModel.remove_flag is False:
         # -------------------------
@@ -66,6 +72,8 @@ def process_create_worker_contract():
         # provide vault recreation before account balance validate
         MainModel.new_worker_account_p_key = obtain_private_key()
         MainModel.new_worker_account_vault_pass = obtain_local_password()
+        MainModel.new_worker_account_minimal_stake = obtain_minimal_stake()
+        MainModel.new_worker_account_batch_price = obtain_batch_price()
         vault_result = create_vault(MainModel.new_worker_account_vault_pass,
                                     MainModel.new_worker_account,
                                     MainModel.new_worker_account_p_key)
@@ -82,11 +90,13 @@ def process_create_worker_contract():
             return
 
         # for performing test ask not from latest block
+        # start on worker contract create filter
         filter_on_worker = contract.events.WorkerNodeCreated.createFilter(fromBlock='latest')
         worker = Thread(target=filter_thread_loop, args=(filter_on_worker, 2), daemon=False)
         worker.start()
         status = worker.is_alive()
-        print('Event listener for worker node creation startup success, alive : ' + str(status))
+        print('Event listener for worker node creation startup success, alive : ' +
+              str(status))
         # -------------------------
         # On Create() logic finish
         # -------------------------
@@ -114,25 +124,50 @@ def process_create_worker_contract():
     connector.eth.setGasPriceStrategy(medium_gas_price_strategy)
     gas_estimation = connector.eth.generateGasPrice()
     gas_estimation = int(gas_estimation + gas_estimation / 2)
-    gas_price = connector.eth.gasPrice
+    gas_price = connector.eth.gasPrice * 1.2
     print('Gas estimation complete success')
     if MainModel.remove_flag is False:
-        print('Transact for creation worker node contract')
         try:
+            if MainModel.new_worker_account_minimal_stake > 0:
+                print('Transact for transfer ownership to economic contract')
+                # transact pan token permission for economic controller ownership
+                nonce = connector.eth.getTransactionCount(MainModel.new_worker_account, "pending")
+                raw_transaction = pan_contract.functions.approve(
+                    connector.toChecksumAddress(MainModel.economic_contract_address),
+                    int(MainModel.new_worker_account_minimal_stake)) \
+                    .buildTransaction({
+                        'from': MainModel.new_worker_account,
+                        'nonce': nonce,
+                        'gas': gas_estimation,
+                        'gasPrice': int(gas_price)})
+                signed_transaction = connector.eth.account.signTransaction(raw_transaction,
+                                                                           MainModel.new_worker_account_p_key)
+                tx_hash = connector.eth.sendRawTransaction(signed_transaction.rawTransaction)
+                print('TX_HASH : ' + tx_hash.hex())
+                print('Waiting for receipt... may take while(10 min timeout)')
+                # may take while(10 min)
+                transaction_receipt = connector.eth.waitForTransactionReceipt(tx_hash, timeout=600)
+                print('TX_RECEIPT : ' + str(transaction_receipt))
+                print('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
+            else:
+                print('Skip stake estimation')
+
+            print('Transact for worker contract creation')
             nonce = connector.eth.getTransactionCount(MainModel.new_worker_account, "pending")
-            raw_transaction = contract.functions.createWorkerNode() \
+            raw_transaction = contract.functions.createWorkerNode(MainModel.new_worker_account_batch_price) \
                 .buildTransaction({
                     'from': MainModel.new_worker_account,
                     'nonce': nonce,
-                    'gas': gas_estimation,
+                    'gas': 6700000,
                     'gasPrice': int(gas_price)})
             signed_transaction = connector.eth.account.signTransaction(raw_transaction,
                                                                        MainModel.new_worker_account_p_key)
             MainModel.new_worker_account_p_key = None
             tx_hash = connector.eth.sendRawTransaction(signed_transaction.rawTransaction)
             print('TX_HASH : ' + tx_hash.hex())
-            print('Waiting for receipt...')
-            transaction_receipt = connector.eth.waitForTransactionReceipt(tx_hash, timeout=300)  # may take while(5 min)
+            print('Waiting for receipt... may take while(10 min timeout)')
+            # may take while(10 min)
+            transaction_receipt = connector.eth.waitForTransactionReceipt(tx_hash, timeout=600)
             print('TX_RECEIPT : ' + str(transaction_receipt))
             print('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
         except Exception as ex:
@@ -155,7 +190,8 @@ def process_create_worker_contract():
             tx_hash = connector.eth.sendRawTransaction(signed_transaction.rawTransaction)
             print('TX_HASH : ' + tx_hash.hex())
             print('Waiting for receipt...')
-            transaction_receipt = connector.eth.waitForTransactionReceipt(tx_hash, timeout=300)  # may take while(5 min)
+            # may take while(10 min)
+            transaction_receipt = connector.eth.waitForTransactionReceipt(tx_hash, timeout=600)
             print('TX_RECEIPT : ' + str(transaction_receipt))
             print('TRANSACTION_STATUS = ' + str(transaction_receipt['status']))
         except Exception as ex:
@@ -231,6 +267,22 @@ def obtain_private_key() -> str:
     else:
         print('Incorrect account private key, please try again')
         obtain_private_key()
+
+
+def obtain_batch_price() -> int:
+    new_worker_contract_batch_price = float(input('Provide worker account batch price : '))
+    if (new_worker_contract_batch_price < 0) or (new_worker_contract_batch_price > 100):
+        print('Incorrect batch price value (set value > 0 and <= 100 PAN tokens)')
+    result = int(new_worker_contract_batch_price * (10 ** 18))
+    return result
+
+
+def obtain_minimal_stake() -> int:
+    print('If your already estimate stake your may set 0 value for skip estimation')
+    minimal_stake = float(input('Provide minimal worker stake : '))
+    if (minimal_stake < 100) and (minimal_stake != 0):
+        print('Incorrect minimal stake value (set value >= 100 PAN tokens)')
+    return minimal_stake * (10 ** 18)
 
 
 def create_vault(local_password: str, new_worker_account: str, worker_account_private: str) -> bool:
@@ -346,6 +398,8 @@ def main(argv):
         MainModel.eth_host = eth_section['remote']
         MainModel.pandora_abi_path = contract_section['abi_path']
         MainModel.pandora_contract_address = contract_section['pandora']
+        MainModel.economic_contract_address = contract_section['pandora_economic']
+        MainModel.pan_token_contract_address = contract_section['pan_token']
         MainModel.current_worker_contract = contract_section['worker_node']
     except Exception as ex:
         print("Error reading config: %s, exiting", type(ex))
@@ -354,11 +408,13 @@ def main(argv):
         MainModel.remove_flag = True
 
     print('Reading properties success')
-    print('Eth host                    : ' + MainModel.eth_host)
-    print('Pandora contract address    : ' + MainModel.pandora_contract_address)
-    print('ABI path                    : ' + MainModel.pandora_abi_path)
-    print('Action remove               : ' + str(MainModel.remove_flag))
-    print('Current worker contract     : ' + MainModel.current_worker_contract)
+    print('Eth host                     : ' + MainModel.eth_host)
+    print('Pandora contract address     : ' + MainModel.pandora_contract_address)
+    print('Pandora economic contract    : ' + MainModel.economic_contract_address)
+    print('Pandora pan contract address : ' + MainModel.pan_token_contract_address)
+    print('ABI path                     : ' + MainModel.pandora_abi_path)
+    print('Action remove                : ' + str(MainModel.remove_flag))
+    print('Current worker contract      : ' + MainModel.current_worker_contract)
     if results:
         MainModel.new_worker_account = results.new_worker_account
         if not MainModel.remove_flag:
@@ -388,7 +444,10 @@ def init_abi_contract() -> bool:
             with open(MainModel.pandora_abi_path + "Pandora.json", encoding='utf-8') as pandora_contract_file:
                 MainModel.pandora_abi = json.load(pandora_contract_file)['abi']
                 print('Pandora main contract ABI loaded success')
-                return True
+        if os.path.isfile(MainModel.pandora_abi_path + "Pan.json"):
+            with open(MainModel.pandora_abi_path + "Pan.json", encoding='utf-8') as pandora_contract_file:
+                MainModel.pan_abi = json.load(pandora_contract_file)['abi']
+                print('Pan contract ABI loaded success')
     else:
         print('ABI not found')
         return False

@@ -165,6 +165,7 @@ class WorkerNode(StatefulContract):
         pass
 
     def on_enter_state_under_penalty(self, from_state: int):
+        self.delegate.state_transact('alive')
         pass
 
     def on_exit_state_under_penalty(self, from_state: int):
