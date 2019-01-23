@@ -198,7 +198,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, Pro
             current_job_state = self.job_state_machine.process_state(job_id_hex=self.job_id_hex)
             self.logger.info('Cognition job state machine initialized success with state : '
                              + str(current_job_state))
-            self.jobs[self.job_id_hex] = self.job_id_hex  # set job index to fobs list
+            self.jobs[self.job_id_hex] = self.job_id_hex  # set job index to job list
 
             # job state loop init
             self.job_state_thread_flag = True
@@ -224,8 +224,8 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, Pro
                 self.init_cognitive_job()
 
             try:
-                kernel_address = self.job_controller_container.call().getCognitiveJobDetails(self.job_id_hex)[0]
-                dataset_address = self.job_controller_container.call().getCognitiveJobDetails(self.job_id_hex)[1]
+                kernel_address = self.job_controller_container.call().getCognitiveJobDetails(self.job_id_hex)[1]
+                dataset_address = self.job_controller_container.call().getCognitiveJobDetails(self.job_id_hex)[2]
             except Exception as ex:
                 self.logger.error("Exception initializing job internal contract")
                 self.logger.error(ex.args)
@@ -246,13 +246,18 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, Pro
                 self.logger.error(ex.args)
 
             # get kernel and dataset addresses
-            kernel_ipfs_address = kernel_container.call().ipfsAddress()
-            dataset_ipfs_address = dataset_container.call().ipfsAddress()
+            try:
+                kernel_ipfs_address = kernel_container.call().ipfsAddress()
+                dataset_ipfs_address = dataset_container.call().ipfsAddress()
+            except Exception as ex:
+                self.logger.error("Unable obtain ipfs job configs")
+                self.logger.error(ex.args)
+                return False
             self.logger.info('Kernel ipfs address : ' + str(kernel_ipfs_address))
             self.logger.info('Dataset ipfs address : ' + str(dataset_ipfs_address))
 
             # determinate batch for current job
-            workers = self.job_controller_container.call().getCognitiveJobDetails(self.job_id_hex)[4]
+            workers = self.job_controller_container.call().getCognitiveJobDetails(self.job_id_hex)[5]
             batch = None
             for idx, w in enumerate(workers):
                 if self.node.lower() == w.lower():

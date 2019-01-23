@@ -13,7 +13,7 @@ class JobStatefulContract(StateMachine):
     def process_state(self, job_id_hex):
         state = 0
         try:
-            state = self.job_controller_container.call().getCognitiveJobDetails(job_id_hex)[6]
+            state = self.job_controller_container.call().getCognitiveJobDetails(job_id_hex)[7]
         except Exception as ex:
             self.logger.info('Exception on process job state.')
             self.logger.info(ex.args)
