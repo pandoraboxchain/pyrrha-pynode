@@ -10,6 +10,10 @@ from core.patterns.state_machine import StateTableEntry
 class CognitiveJobDelegate(metaclass=ABCMeta):
 
     @abstractmethod
+    def process_data_validation(self):
+        pass
+
+    @abstractmethod
     def terminate_job(self, job):
         pass
 
@@ -91,7 +95,7 @@ class CognitiveJob(JobStatefulContract):
         pass
 
     def on_enter_data_validation(self, from_state: int):
-        pass
+        self.delegate.process_data_validation(self)
 
     def on_enter_invalid_data(self, from_state: int):
         pass

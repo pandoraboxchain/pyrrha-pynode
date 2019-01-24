@@ -216,7 +216,7 @@ def on_worker_node_event(event: dict):
     if MainModel.remove_flag is False:
         try:
             address = event['args']['workerNode']
-            print("Node creation success address : " + address)
+            print("Worker Node contract creation success address : " + address)
             print("Storing worker address to config file")
             config = ConfigParser()
             config.read('../pynode/core/config/pynode.ini')
@@ -270,7 +270,7 @@ def obtain_private_key() -> str:
 
 
 def obtain_batch_price() -> int:
-    new_worker_contract_batch_price = float(input('Provide worker account batch price : '))
+    new_worker_contract_batch_price = float(input('Provide worker account batch price (example : 0.75) : '))
     if (new_worker_contract_batch_price < 0) or (new_worker_contract_batch_price > 100):
         print('Incorrect batch price value (set value > 0 and <= 100 PAN tokens)')
     result = int(new_worker_contract_batch_price * (10 ** 18))
@@ -279,7 +279,7 @@ def obtain_batch_price() -> int:
 
 def obtain_minimal_stake() -> int:
     print('If your already estimate stake your may set 0 value for skip estimation')
-    minimal_stake = float(input('Provide minimal worker stake : '))
+    minimal_stake = float(input('Provide minimal worker stake (example : 100) : '))
     if (minimal_stake < 100) and (minimal_stake != 0):
         print('Incorrect minimal stake value (set value >= 100 PAN tokens)')
     return minimal_stake * (10 ** 18)

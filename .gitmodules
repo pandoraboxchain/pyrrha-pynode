@@ -1,4 +1,4 @@
 [submodule "pyrrha-consensus"]
 	path = pyrrha-consensus
 	url = https://github.com/pandoraboxchain/pyrrha-consensus.git
-    branch = master
+    branch = develop

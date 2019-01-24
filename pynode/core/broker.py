@@ -21,14 +21,20 @@ from service.tools.key_tools import KeyTools
 from core.node.worker_node import WorkerNodeDelegate
 from core.node.worker_node_thread import WorkerNodeStateMachineThread, WorkerNodeStateDelegate
 
-from core.job.cognitive_job import CognitiveJob
+from core.job.cognitive_job import CognitiveJob, CognitiveJobDelegate
 from core.patterns.singleton import Singleton
 from core.patterns.pynode_logger import LogSocketHandler
 from core.processor.processor import Processor, ProcessorDelegate
 from core.processor.entities.kernel import ProgressDelegate
 
 
-class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, ProcessorDelegate, ProgressDelegate):
+class Broker(Thread,
+             Singleton,
+             WorkerNodeDelegate,
+             WorkerNodeStateDelegate,
+             ProcessorDelegate,
+             ProgressDelegate,
+             CognitiveJobDelegate):
     """
     Broker manages all underlying services/threads and arranges communications between them. Broker directly manages
     WebAPI and Ethereum threads and provides delegate interfaces for capturing their output via callback functions.
@@ -204,7 +210,7 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, Pro
             self.job_state_thread_flag = True
             filter_on_job = self.job_controller_container.events.JobStateChanged.createFilter(fromBlock='latest')
             self.job_state_event_thread = Thread(target=self.job_filter_thread_loop,
-                                                 args=(filter_on_job, 2),
+                                                 args=(filter_on_job, 14.5),
                                                  daemon=True)
             self.job_state_event_thread.start()
             status = self.job_state_event_thread.is_alive()
@@ -317,11 +323,17 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, Pro
                          worker_state_table[state_new].name)
         self.worker_node_state_machine.state(state_new)
 
+    # on total connection lost try to restart and reinit
+    def on_worker_node_connection_lost(self):
+        # TODO this is vert HOT fix. Rewrite it correctly!!!
+        self.restart_pynode()
+
     # job state filter loop
     def job_filter_thread_loop(self, event_filter, pool_interval):
         while self.job_state_thread_flag:
             try:
                 if event_filter:
+                    self.logger.info('Job filter state check...')
                     for event in event_filter.get_new_entries():
                         event_job_id = self.worker_node_container.web3.toHex(event['args']['jobId'])
                         if event_job_id == self.job_id_hex:
@@ -364,6 +376,16 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, Pro
         self.logger.info("Initializing cognitive job contract for ID %s", self.job_id_hex)
         if self.init_cognitive_job() is False:
             self.logger.error("Error initializing cognitive job for ID %s", self.job_id_hex)
+
+    def validate_current_job_state(self):
+        self.logger.info('CALL - validate job state')
+        job_id = self.worker_node_container.call().activeJob()
+        active_job_state = self.job_controller_container.call().getCognitiveJobDetails(
+            self.worker_node_container.web3.toHex(job_id))[7]
+        if active_job_state != 3:
+            self.logger.info('Incompatible job state... wait for job state DataValidation')
+            return False
+        return True
 
     def start_validating(self):
         self.logger.info('CALL - start_validating')
@@ -493,6 +515,10 @@ class Broker(Thread, Singleton, WorkerNodeDelegate, WorkerNodeStateDelegate, Pro
 # ----------------------------------------------------------------------------------------------------------
 # Cognitive job delegate methods
 # ----------------------------------------------------------------------------------------------------------
+    def process_data_validation(self):
+        self.logger.info('JOB CALL - process_data_validation')
+        self.start_validating()
+
     def terminate_job(self, job: CognitiveJob):
         pass
 

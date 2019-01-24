@@ -12,6 +12,10 @@ class WorkerNodeDelegate(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    def validate_current_job_state(self):
+        pass
+
+    @abstractmethod
     def start_validating(self):
         pass
 
@@ -141,7 +145,8 @@ class WorkerNode(StatefulContract):
 
     def on_enter_state_validating_data(self, from_state: int):
         self.delegate.create_cognitive_job()
-        self.delegate.start_validating()
+        if self.delegate.validate_current_job_state() is not False:
+            self.delegate.start_validating()
 
     def on_exit_state_validating_data(self, to_state: int):
         pass

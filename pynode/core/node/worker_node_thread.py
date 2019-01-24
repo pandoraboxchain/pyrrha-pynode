@@ -2,12 +2,17 @@ import time
 import logging
 
 from abc import ABCMeta, abstractmethod
+
 from core.node.worker_node import WorkerNode
 from threading import Thread
 from core.patterns.pynode_logger import LogSocketHandler
 
 
 class WorkerNodeStateDelegate(metaclass=ABCMeta):
+    @abstractmethod
+    def on_worker_node_connection_lost(self):
+        pass
+
     @abstractmethod
     def on_worker_node_state_change(self, event: dict):
         pass
@@ -103,7 +108,13 @@ class WorkerNodeStateMachineThread:
 
     def calculate_thread_sleep_interval(self, past_block, past_block_number):
         # calculate sleep thread time
-        current_block = self.worker_node_container.web3.eth.getBlock('latest')
+        current_block = 0
+        try:
+            current_block = self.worker_node_container.web3.eth.getBlock('latest')
+        except Exception as ex:
+            self.logger.info('Connection lost... ')
+            self.state_delegate.on_worker_node_connection_lost()
+
         self.current_block_number = current_block.number
         diff = self.current_block_number - past_block_number
         if diff >= 1:
